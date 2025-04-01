@@ -1,0 +1,311 @@
+2025-03-31 21:22:27,324 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cuda
+2025-03-31 21:22:27,324 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: sentence-transformers/all-mpnet-base-v2
+2025-03-31 22:27:46,290 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cuda
+2025-03-31 22:27:46,291 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: sentence-transformers/all-mpnet-base-v2
+2025-03-31 22:27:49,536 - faiss.loader - INFO - Loading faiss with AVX2 support.
+2025-03-31 22:27:49,563 - faiss.loader - INFO - Successfully loaded faiss with AVX2 support.
+2025-03-31 22:27:49,566 - faiss - INFO - Failed to load GPU Faiss: name 'GpuIndexIVFFlat' is not defined. Will not load constructor refs for GPU indexes.
+2025-03-31 22:27:49,569 - api.langchain_utils - INFO - Loaded existing FAISS index from data/rag_data/realtime_data_index
+2025-03-31 22:27:49,573 - api.main - INFO - Running startup event...
+2025-03-31 22:27:50,206 - rss_feed_ingestor - INFO - Fetched 33 articles from BBC News
+2025-03-31 22:27:50,206 - api.main - INFO - Successfully ingested 5 from BBC"
+2025-03-31 22:27:52,291 - rss_feed_ingestor - INFO - Fetched 25 articles from NYT > Technology
+2025-03-31 22:27:52,291 - api.main - INFO - Successfully ingested 5 from NYTimes"
+2025-03-31 22:27:52,782 - api.langchain_utils - INFO - Updated FAISS index saved to data/rag_data/realtime_data_index
+2025-03-31 22:27:52,782 - api.main - ERROR - Error updating RAG index after ingestion: object NoneType can't be used in 'await' expression
+2025-03-31 22:27:52,782 - api.main - INFO - Startup event completed.
+2025-03-31 22:29:29,489 - api.langchain_utils - INFO - Retrieved context: ['title 5 us voters weigh in on the signal leak\nsummary what did they think about the national security breach in which trump administration officials discussed attack plans in yemen on a commercial messaging app\nlink httpswwwnytimescom20250329ustrumpsignalleakwarplanshtml', 'title 5 us voters weigh in on the signal leak\nsummary what did they think about the national security breach in which trump administration officials discussed attack plans in yemen on a commercial messaging app\nlink httpswwwnytimescom20250329ustrumpsignalleakwarplanshtml', 'title fcc orders investigation into disneys dei practices\nsummary the chairman brendan carr sent a letter to the company accusing it of violating equal employment opportunity regulations\nlink httpswwwnytimescom20250328technologydisneyfccdeiinvestigationhtml', 'title fcc orders investigation into disneys dei practices\nsummary the chairman brendan carr sent a letter to the company accusing it of violating equal employment opportunity regulations\nlink httpswwwnytimescom20250328technologydisneyfccdeiinvestigationhtml', 'title birmingham declares major incident over bin strike\nsummary city council leader john cotton says the action is being taken because of public health concerns\nlink httpswwwbbccomnewsarticlesc93gpqvp8w5o']
+2025-03-31 22:29:30,160 - api.main - INFO - Detected input type: factual for query: Who is the President of the World?...
+2025-03-31 22:29:30,179 - api.langchain_utils - INFO - Retrieved context: ['title trump family starts bitcoin mining venture in further push into crypto\nsummary eric trump and donald trump jr are investing in a bitcoinmining company called american bitcoin created by the merger of two firms\nlink httpswwwnytimescom20250331businesstrumpbitcoinmininghtml', 'title 5 us voters weigh in on the signal leak\nsummary what did they think about the national security breach in which trump administration officials discussed attack plans in yemen on a commercial messaging app\nlink httpswwwnytimescom20250329ustrumpsignalleakwarplanshtml', 'title 5 us voters weigh in on the signal leak\nsummary what did they think about the national security breach in which trump administration officials discussed attack plans in yemen on a commercial messaging app\nlink httpswwwnytimescom20250329ustrumpsignalleakwarplanshtml', 'title nothing is left  bbc witnesses earthquake destruction in myanmars capital\nsummary the bbc is in myanmars capital nay pyi taw to see the destruction caused by the devastating earthquake\nlink httpswwwbbccomnewsvideoscz6dx5lxjn0o', 'title elon musk says he has sold x to his ai startup xai\nsummary the deal combined two of mr musks companies which have been on different trajectories the transaction valued xai at 80 billion and x at 33 billion the billionaire said\nlink httpswwwnytimescom20250328technologymuskxxaihtml']
+2025-03-31 22:34:01,079 - api.langchain_utils - INFO - Retrieved context: ['title 5 us voters weigh in on the signal leak\nsummary what did they think about the national security breach in which trump administration officials discussed attack plans in yemen on a commercial messaging app\nlink httpswwwnytimescom20250329ustrumpsignalleakwarplanshtml', 'title 5 us voters weigh in on the signal leak\nsummary what did they think about the national security breach in which trump administration officials discussed attack plans in yemen on a commercial messaging app\nlink httpswwwnytimescom20250329ustrumpsignalleakwarplanshtml', 'title fcc orders investigation into disneys dei practices\nsummary the chairman brendan carr sent a letter to the company accusing it of violating equal employment opportunity regulations\nlink httpswwwnytimescom20250328technologydisneyfccdeiinvestigationhtml', 'title fcc orders investigation into disneys dei practices\nsummary the chairman brendan carr sent a letter to the company accusing it of violating equal employment opportunity regulations\nlink httpswwwnytimescom20250328technologydisneyfccdeiinvestigationhtml', 'title birmingham declares major incident over bin strike\nsummary city council leader john cotton says the action is being taken because of public health concerns\nlink httpswwwbbccomnewsarticlesc93gpqvp8w5o']
+2025-03-31 22:34:01,451 - api.main - INFO - Detected input type: factual for query: Is Mount Everest the tallest mountain on Earth abo...
+2025-03-31 22:34:01,476 - api.langchain_utils - INFO - Retrieved context: ['title nothing is left  bbc witnesses earthquake destruction in myanmars capital\nsummary the bbc is in myanmars capital nay pyi taw to see the destruction caused by the devastating earthquake\nlink httpswwwbbccomnewsvideoscz6dx5lxjn0o', 'title sunshine for the uk this week with temperatures set to hit 20c\nsummary high pressure is set to dominate the weather this week keeping many places dry and sunny\nlink httpswwwbbccomweatherarticlescly27ggvxr8o', 'title elon musk says he has sold x to his ai startup xai\nsummary the deal combined two of mr musks companies which have been on different trajectories the transaction valued xai at 80 billion and x at 33 billion the billionaire said\nlink httpswwwnytimescom20250328technologymuskxxaihtml', 'title elon musk says he has sold x to his ai startup xai\nsummary the deal combined two of mr musks companies which have been on different trajectories the transaction valued xai at 80 billion and x at 33 billion the billionaire said\nlink httpswwwnytimescom20250328technologymuskxxaihtml', 'title trump family starts bitcoin mining venture in further push into crypto\nsummary eric trump and donald trump jr are investing in a bitcoinmining company called american bitcoin created by the merger of two firms\nlink httpswwwnytimescom20250331businesstrumpbitcoinmininghtml']
+2025-03-31 22:35:20,078 - api.langchain_utils - INFO - Retrieved context: ['title 5 us voters weigh in on the signal leak\nsummary what did they think about the national security breach in which trump administration officials discussed attack plans in yemen on a commercial messaging app\nlink httpswwwnytimescom20250329ustrumpsignalleakwarplanshtml', 'title 5 us voters weigh in on the signal leak\nsummary what did they think about the national security breach in which trump administration officials discussed attack plans in yemen on a commercial messaging app\nlink httpswwwnytimescom20250329ustrumpsignalleakwarplanshtml', 'title birmingham declares major incident over bin strike\nsummary city council leader john cotton says the action is being taken because of public health concerns\nlink httpswwwbbccomnewsarticlesc93gpqvp8w5o', 'title fcc orders investigation into disneys dei practices\nsummary the chairman brendan carr sent a letter to the company accusing it of violating equal employment opportunity regulations\nlink httpswwwnytimescom20250328technologydisneyfccdeiinvestigationhtml', 'title fcc orders investigation into disneys dei practices\nsummary the chairman brendan carr sent a letter to the company accusing it of violating equal employment opportunity regulations\nlink httpswwwnytimescom20250328technologydisneyfccdeiinvestigationhtml']
+2025-03-31 22:35:20,794 - api.main - INFO - Detected input type: misinfo for query: - Is the Earth flat or round...
+2025-03-31 22:35:21,029 - api.factcheck_api_util - ERROR - Fact Check API request failed: HTTPSConnectionPool(host='factcheckapi.org', port=443): Max retries exceeded with url: /check (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x7e65f05642d0>: Failed to resolve 'factcheckapi.org' ([Errno -2] Name or service not known)"))
+Traceback (most recent call last):
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/connection.py", line 198, in _new_conn
+    sock = connection.create_connection(
+        (self._dns_host, self.port),
+    ...<2 lines>...
+        socket_options=self.socket_options,
+    )
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/util/connection.py", line 60, in create_connection
+    for res in socket.getaddrinfo(host, port, family, socket.SOCK_STREAM):
+               ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/socket.py", line 977, in getaddrinfo
+    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+               ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+socket.gaierror: [Errno -2] Name or service not known
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/connectionpool.py", line 787, in urlopen
+    response = self._make_request(
+        conn,
+    ...<10 lines>...
+        **response_kw,
+    )
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/connectionpool.py", line 488, in _make_request
+    raise new_e
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/connectionpool.py", line 464, in _make_request
+    self._validate_conn(conn)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/connectionpool.py", line 1093, in _validate_conn
+    conn.connect()
+    ~~~~~~~~~~~~^^
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/connection.py", line 704, in connect
+    self.sock = sock = self._new_conn()
+                       ~~~~~~~~~~~~~~^^
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/connection.py", line 205, in _new_conn
+    raise NameResolutionError(self.host, self, e) from e
+urllib3.exceptions.NameResolutionError: <urllib3.connection.HTTPSConnection object at 0x7e65f05642d0>: Failed to resolve 'factcheckapi.org' ([Errno -2] Name or service not known)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/requests/adapters.py", line 486, in send
+    resp = conn.urlopen(
+        method=request.method,
+    ...<9 lines>...
+        chunked=chunked,
+    )
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+        method, url, error=new_e, _pool=self, _stacktrace=sys.exc_info()[2]
+    )
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/util/retry.py", line 519, in increment
+    raise MaxRetryError(_pool, url, reason) from reason  # type: ignore[arg-type]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='factcheckapi.org', port=443): Max retries exceeded with url: /check (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x7e65f05642d0>: Failed to resolve 'factcheckapi.org' ([Errno -2] Name or service not known)"))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/cykosynergy/falo/misinformation_detection/api/factcheck_api_util.py", line 16, in query_fact_check_api
+    response = requests.post(url, headers=headers, data=payload)
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/requests/api.py", line 115, in post
+    return request("post", url, data=data, json=json, **kwargs)
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/requests/api.py", line 59, in request
+    return session.request(method=method, url=url, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/requests/sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/requests/sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/requests/adapters.py", line 519, in send
+    raise ConnectionError(e, request=request)
+requests.exceptions.ConnectionError: HTTPSConnectionPool(host='factcheckapi.org', port=443): Max retries exceeded with url: /check (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x7e65f05642d0>: Failed to resolve 'factcheckapi.org' ([Errno -2] Name or service not known)"))
+2025-03-31 22:35:22,195 - api.groq_utils - INFO - Misinformation analysis complete. Category: uncertain
+2025-03-31 22:40:10,372 - api.langchain_utils - INFO - Retrieved context: ['title 5 us voters weigh in on the signal leak\nsummary what did they think about the national security breach in which trump administration officials discussed attack plans in yemen on a commercial messaging app\nlink httpswwwnytimescom20250329ustrumpsignalleakwarplanshtml', 'title 5 us voters weigh in on the signal leak\nsummary what did they think about the national security breach in which trump administration officials discussed attack plans in yemen on a commercial messaging app\nlink httpswwwnytimescom20250329ustrumpsignalleakwarplanshtml', 'title birmingham declares major incident over bin strike\nsummary city council leader john cotton says the action is being taken because of public health concerns\nlink httpswwwbbccomnewsarticlesc93gpqvp8w5o', 'title fcc orders investigation into disneys dei practices\nsummary the chairman brendan carr sent a letter to the company accusing it of violating equal employment opportunity regulations\nlink httpswwwnytimescom20250328technologydisneyfccdeiinvestigationhtml', 'title fcc orders investigation into disneys dei practices\nsummary the chairman brendan carr sent a letter to the company accusing it of violating equal employment opportunity regulations\nlink httpswwwnytimescom20250328technologydisneyfccdeiinvestigationhtml']
+2025-03-31 22:40:10,875 - api.main - INFO - Detected input type: misinfo for query: Is the Earth flat or round...
+2025-03-31 22:40:10,878 - api.factcheck_api_util - ERROR - Fact Check API request failed: HTTPSConnectionPool(host='factcheckapi.org', port=443): Max retries exceeded with url: /check (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x7e65f0566210>: Failed to resolve 'factcheckapi.org' ([Errno -2] Name or service not known)"))
+Traceback (most recent call last):
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/connection.py", line 198, in _new_conn
+    sock = connection.create_connection(
+        (self._dns_host, self.port),
+    ...<2 lines>...
+        socket_options=self.socket_options,
+    )
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/util/connection.py", line 60, in create_connection
+    for res in socket.getaddrinfo(host, port, family, socket.SOCK_STREAM):
+               ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/socket.py", line 977, in getaddrinfo
+    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+               ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+socket.gaierror: [Errno -2] Name or service not known
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/connectionpool.py", line 787, in urlopen
+    response = self._make_request(
+        conn,
+    ...<10 lines>...
+        **response_kw,
+    )
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/connectionpool.py", line 488, in _make_request
+    raise new_e
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/connectionpool.py", line 464, in _make_request
+    self._validate_conn(conn)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/connectionpool.py", line 1093, in _validate_conn
+    conn.connect()
+    ~~~~~~~~~~~~^^
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/connection.py", line 704, in connect
+    self.sock = sock = self._new_conn()
+                       ~~~~~~~~~~~~~~^^
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/connection.py", line 205, in _new_conn
+    raise NameResolutionError(self.host, self, e) from e
+urllib3.exceptions.NameResolutionError: <urllib3.connection.HTTPSConnection object at 0x7e65f0566210>: Failed to resolve 'factcheckapi.org' ([Errno -2] Name or service not known)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/requests/adapters.py", line 486, in send
+    resp = conn.urlopen(
+        method=request.method,
+    ...<9 lines>...
+        chunked=chunked,
+    )
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+        method, url, error=new_e, _pool=self, _stacktrace=sys.exc_info()[2]
+    )
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/util/retry.py", line 519, in increment
+    raise MaxRetryError(_pool, url, reason) from reason  # type: ignore[arg-type]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='factcheckapi.org', port=443): Max retries exceeded with url: /check (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x7e65f0566210>: Failed to resolve 'factcheckapi.org' ([Errno -2] Name or service not known)"))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/cykosynergy/falo/misinformation_detection/api/factcheck_api_util.py", line 16, in query_fact_check_api
+    response = requests.post(url, headers=headers, data=payload)
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/requests/api.py", line 115, in post
+    return request("post", url, data=data, json=json, **kwargs)
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/requests/api.py", line 59, in request
+    return session.request(method=method, url=url, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/requests/sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/requests/sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/requests/adapters.py", line 519, in send
+    raise ConnectionError(e, request=request)
+requests.exceptions.ConnectionError: HTTPSConnectionPool(host='factcheckapi.org', port=443): Max retries exceeded with url: /check (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x7e65f0566210>: Failed to resolve 'factcheckapi.org' ([Errno -2] Name or service not known)"))
+2025-03-31 22:40:12,126 - api.groq_utils - INFO - Misinformation analysis complete. Category: uncertain
+2025-04-01 08:55:32,873 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cuda
+2025-04-01 08:55:32,873 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: sentence-transformers/all-mpnet-base-v2
+2025-04-01 08:56:02,356 - faiss.loader - INFO - Loading faiss with AVX2 support.
+2025-04-01 08:56:02,389 - faiss.loader - INFO - Successfully loaded faiss with AVX2 support.
+2025-04-01 08:56:02,393 - faiss - INFO - Failed to load GPU Faiss: name 'GpuIndexIVFFlat' is not defined. Will not load constructor refs for GPU indexes.
+2025-04-01 08:56:02,398 - api.langchain_utils - INFO - Loaded existing FAISS index from data/rag_data/realtime_data_index
+2025-04-01 08:56:02,403 - api.main - INFO - Running startup event...
+2025-04-01 08:56:02,410 - rss_feed_ingestor - ERROR - Error during RSS feed processing: object has no attribute 'title'
+Traceback (most recent call last):
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/feedparser/util.py", line 156, in __getattr__
+    return self.__getitem__(key)
+           ~~~~~~~~~~~~~~~~^^^^^
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/feedparser/util.py", line 113, in __getitem__
+    return dict.__getitem__(self, key)
+           ~~~~~~~~~~~~~~~~^^^^^^^^^^^
+KeyError: 'title'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/cykosynergy/falo/misinformation_detection/rss_feed_ingestor.py", line 18, in get_rss_news
+    logger.info(f"Fetched {len(feed.entries)} articles from {feed.feed.title}")
+                                                             ^^^^^^^^^^^^^^^
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/feedparser/util.py", line 158, in __getattr__
+    raise AttributeError("object has no attribute '%s'" % key)
+AttributeError: object has no attribute 'title'
+2025-04-01 08:56:02,411 - api.main - WARNING - No articles ingested from BBC" - check URL or network.
+2025-04-01 08:56:02,417 - rss_feed_ingestor - ERROR - Error during RSS feed processing: object has no attribute 'title'
+Traceback (most recent call last):
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/feedparser/util.py", line 156, in __getattr__
+    return self.__getitem__(key)
+           ~~~~~~~~~~~~~~~~^^^^^
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/feedparser/util.py", line 113, in __getitem__
+    return dict.__getitem__(self, key)
+           ~~~~~~~~~~~~~~~~^^^^^^^^^^^
+KeyError: 'title'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/cykosynergy/falo/misinformation_detection/rss_feed_ingestor.py", line 18, in get_rss_news
+    logger.info(f"Fetched {len(feed.entries)} articles from {feed.feed.title}")
+                                                             ^^^^^^^^^^^^^^^
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/feedparser/util.py", line 158, in __getattr__
+    raise AttributeError("object has no attribute '%s'" % key)
+AttributeError: object has no attribute 'title'
+2025-04-01 08:56:02,418 - api.main - WARNING - No articles ingested from NYTimes" - check URL or network.
+2025-04-01 08:56:02,418 - api.main - WARNING - No articles to update RAG index.
+2025-04-01 08:56:02,418 - api.main - INFO - Startup event completed.
+2025-04-01 08:57:22,255 - api.langchain_utils - INFO - Retrieved context: ['title 5 us voters weigh in on the signal leak\nsummary what did they think about the national security breach in which trump administration officials discussed attack plans in yemen on a commercial messaging app\nlink httpswwwnytimescom20250329ustrumpsignalleakwarplanshtml', 'title 5 us voters weigh in on the signal leak\nsummary what did they think about the national security breach in which trump administration officials discussed attack plans in yemen on a commercial messaging app\nlink httpswwwnytimescom20250329ustrumpsignalleakwarplanshtml', 'title birmingham declares major incident over bin strike\nsummary city council leader john cotton says the action is being taken because of public health concerns\nlink httpswwwbbccomnewsarticlesc93gpqvp8w5o', 'title fcc orders investigation into disneys dei practices\nsummary the chairman brendan carr sent a letter to the company accusing it of violating equal employment opportunity regulations\nlink httpswwwnytimescom20250328technologydisneyfccdeiinvestigationhtml', 'title fcc orders investigation into disneys dei practices\nsummary the chairman brendan carr sent a letter to the company accusing it of violating equal employment opportunity regulations\nlink httpswwwnytimescom20250328technologydisneyfccdeiinvestigationhtml']
+2025-04-01 08:57:23,112 - api.main - INFO - Detected input type: misinfo for query: does humans can fly...
+2025-04-01 08:57:23,501 - api.factcheck_api_util - ERROR - Fact Check API request failed: HTTPSConnectionPool(host='factcheckapi.org', port=443): Max retries exceeded with url: /check (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x731739270910>: Failed to resolve 'factcheckapi.org' ([Errno -2] Name or service not known)"))
+Traceback (most recent call last):
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/connection.py", line 198, in _new_conn
+    sock = connection.create_connection(
+        (self._dns_host, self.port),
+    ...<2 lines>...
+        socket_options=self.socket_options,
+    )
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/util/connection.py", line 60, in create_connection
+    for res in socket.getaddrinfo(host, port, family, socket.SOCK_STREAM):
+               ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/socket.py", line 977, in getaddrinfo
+    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+               ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+socket.gaierror: [Errno -2] Name or service not known
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/connectionpool.py", line 787, in urlopen
+    response = self._make_request(
+        conn,
+    ...<10 lines>...
+        **response_kw,
+    )
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/connectionpool.py", line 488, in _make_request
+    raise new_e
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/connectionpool.py", line 464, in _make_request
+    self._validate_conn(conn)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/connectionpool.py", line 1093, in _validate_conn
+    conn.connect()
+    ~~~~~~~~~~~~^^
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/connection.py", line 704, in connect
+    self.sock = sock = self._new_conn()
+                       ~~~~~~~~~~~~~~^^
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/connection.py", line 205, in _new_conn
+    raise NameResolutionError(self.host, self, e) from e
+urllib3.exceptions.NameResolutionError: <urllib3.connection.HTTPSConnection object at 0x731739270910>: Failed to resolve 'factcheckapi.org' ([Errno -2] Name or service not known)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/requests/adapters.py", line 486, in send
+    resp = conn.urlopen(
+        method=request.method,
+    ...<9 lines>...
+        chunked=chunked,
+    )
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+        method, url, error=new_e, _pool=self, _stacktrace=sys.exc_info()[2]
+    )
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/urllib3/util/retry.py", line 519, in increment
+    raise MaxRetryError(_pool, url, reason) from reason  # type: ignore[arg-type]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='factcheckapi.org', port=443): Max retries exceeded with url: /check (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x731739270910>: Failed to resolve 'factcheckapi.org' ([Errno -2] Name or service not known)"))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/cykosynergy/falo/misinformation_detection/api/factcheck_api_util.py", line 16, in query_fact_check_api
+    response = requests.post(url, headers=headers, data=payload)
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/requests/api.py", line 115, in post
+    return request("post", url, data=data, json=json, **kwargs)
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/requests/api.py", line 59, in request
+    return session.request(method=method, url=url, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/requests/sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/requests/sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+  File "/home/cykosynergy/falo/env/lib/python3.13/site-packages/requests/adapters.py", line 519, in send
+    raise ConnectionError(e, request=request)
+requests.exceptions.ConnectionError: HTTPSConnectionPool(host='factcheckapi.org', port=443): Max retries exceeded with url: /check (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x731739270910>: Failed to resolve 'factcheckapi.org' ([Errno -2] Name or service not known)"))
+2025-04-01 08:57:25,003 - api.groq_utils - INFO - Misinformation analysis complete. Category: hoax
+2025-04-01 09:01:38,341 - api.langchain_utils - INFO - Retrieved context: ['title 5 us voters weigh in on the signal leak\nsummary what did they think about the national security breach in which trump administration officials discussed attack plans in yemen on a commercial messaging app\nlink httpswwwnytimescom20250329ustrumpsignalleakwarplanshtml', 'title 5 us voters weigh in on the signal leak\nsummary what did they think about the national security breach in which trump administration officials discussed attack plans in yemen on a commercial messaging app\nlink httpswwwnytimescom20250329ustrumpsignalleakwarplanshtml', 'title fcc orders investigation into disneys dei practices\nsummary the chairman brendan carr sent a letter to the company accusing it of violating equal employment opportunity regulations\nlink httpswwwnytimescom20250328technologydisneyfccdeiinvestigationhtml', 'title fcc orders investigation into disneys dei practices\nsummary the chairman brendan carr sent a letter to the company accusing it of violating equal employment opportunity regulations\nlink httpswwwnytimescom20250328technologydisneyfccdeiinvestigationhtml', 'title birmingham declares major incident over bin strike\nsummary city council leader john cotton says the action is being taken because of public health concerns\nlink httpswwwbbccomnewsarticlesc93gpqvp8w5o']
+2025-04-01 09:01:40,520 - api.main - INFO - Detected input type: factual for query: who is the president of america ...
+2025-04-01 09:01:40,542 - api.langchain_utils - INFO - Retrieved context: ['title trump family starts bitcoin mining venture in further push into crypto\nsummary eric trump and donald trump jr are investing in a bitcoinmining company called american bitcoin created by the merger of two firms\nlink httpswwwnytimescom20250331businesstrumpbitcoinmininghtml', 'title 5 us voters weigh in on the signal leak\nsummary what did they think about the national security breach in which trump administration officials discussed attack plans in yemen on a commercial messaging app\nlink httpswwwnytimescom20250329ustrumpsignalleakwarplanshtml', 'title 5 us voters weigh in on the signal leak\nsummary what did they think about the national security breach in which trump administration officials discussed attack plans in yemen on a commercial messaging app\nlink httpswwwnytimescom20250329ustrumpsignalleakwarplanshtml', 'title uk expects to be hit by trump tariffs no 10 says\nsummary downing street does not rule out retaliating if new tariffs are imposed on wednesday\nlink httpswwwbbccomnewsarticlescrrzl1l9w95o', 'title elon musk says he has sold x to his ai startup xai\nsummary the deal combined two of mr musks companies which have been on different trajectories the transaction valued xai at 80 billion and x at 33 billion the billionaire said\nlink httpswwwnytimescom20250328technologymuskxxaihtml']
+2025-04-01 09:02:32,615 - api.langchain_utils - INFO - Retrieved context: ['title 5 us voters weigh in on the signal leak\nsummary what did they think about the national security breach in which trump administration officials discussed attack plans in yemen on a commercial messaging app\nlink httpswwwnytimescom20250329ustrumpsignalleakwarplanshtml', 'title 5 us voters weigh in on the signal leak\nsummary what did they think about the national security breach in which trump administration officials discussed attack plans in yemen on a commercial messaging app\nlink httpswwwnytimescom20250329ustrumpsignalleakwarplanshtml', 'title fcc orders investigation into disneys dei practices\nsummary the chairman brendan carr sent a letter to the company accusing it of violating equal employment opportunity regulations\nlink httpswwwnytimescom20250328technologydisneyfccdeiinvestigationhtml', 'title fcc orders investigation into disneys dei practices\nsummary the chairman brendan carr sent a letter to the company accusing it of violating equal employment opportunity regulations\nlink httpswwwnytimescom20250328technologydisneyfccdeiinvestigationhtml', 'title birmingham declares major incident over bin strike\nsummary city council leader john cotton says the action is being taken because of public health concerns\nlink httpswwwbbccomnewsarticlesc93gpqvp8w5o']
+2025-04-01 09:02:33,295 - api.main - INFO - Detected input type: factual for query: joe biden is the president of america ...
+2025-04-01 09:02:33,314 - api.langchain_utils - INFO - Retrieved context: ['title 5 us voters weigh in on the signal leak\nsummary what did they think about the national security breach in which trump administration officials discussed attack plans in yemen on a commercial messaging app\nlink httpswwwnytimescom20250329ustrumpsignalleakwarplanshtml', 'title 5 us voters weigh in on the signal leak\nsummary what did they think about the national security breach in which trump administration officials discussed attack plans in yemen on a commercial messaging app\nlink httpswwwnytimescom20250329ustrumpsignalleakwarplanshtml', 'title trump family starts bitcoin mining venture in further push into crypto\nsummary eric trump and donald trump jr are investing in a bitcoinmining company called american bitcoin created by the merger of two firms\nlink httpswwwnytimescom20250331businesstrumpbitcoinmininghtml', 'title elon musk says he has sold x to his ai startup xai\nsummary the deal combined two of mr musks companies which have been on different trajectories the transaction valued xai at 80 billion and x at 33 billion the billionaire said\nlink httpswwwnytimescom20250328technologymuskxxaihtml', 'title elon musk says he has sold x to his ai startup xai\nsummary the deal combined two of mr musks companies which have been on different trajectories the transaction valued xai at 80 billion and x at 33 billion the billionaire said\nlink httpswwwnytimescom20250328technologymuskxxaihtml']

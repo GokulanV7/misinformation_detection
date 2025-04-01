@@ -1,14 +1,99 @@
+# config/config.yaml
+# Configuration for the Misinformation Detection API
+
+# --- Groq LLM Configuration ---
 groq:
+  # Recommended high-performance model available on Groq (as of mid-2024).
+  # Verify available models: https://console.groq.com/docs/models
+  # Alternatives: "mixtral-8x7b-32768" (often faster) or "llama3-8b-8192" (smaller)
   model: "llama3-70b-8192"
+  # Lower temperature for more deterministic, factual responses (0.0-1.0).
+  # 0.1 is good for analysis/factual tasks.
   temperature: 0.1
+  # Timeout in seconds for waiting for a response from the Groq API.
+  request_timeout: 30
+
+# --- VirusTotal Configuration ---
 virustotal:
-  url: "https://www.virustotal.com/api/v3/urls"
+  # Base URL for the VirusTotal v3 API.
   api_url: "https://www.virustotal.com/api/v3/urls"
+  # Default assessment if VT doesn't clearly classify as malicious/suspicious.
   default_assessment: "Safe"
+  # Timeout in seconds for VirusTotal API requests.
+  request_timeout: 20
+
+# --- Retrieval-Augmented Generation (RAG) Configuration ---
 rag:
+  # Target size for text chunks when indexing data. May need tuning.
   chunk_size: 1000
+  # Number of characters overlapping between chunks to preserve context.
   chunk_overlap: 200
-  embedding_model: "sentence-transformers/all-mpnet-base-v2" #or use hugging face for free embeddings , otherwise paid version open ai embbedings
+  # Embedding model for converting text to vectors.
+  # "all-mpnet-base-v2" is a strong, free, widely-used default.
+  # Ensure this model is compatible with the FAISS index if reusing an old one.
+  embedding_model: "sentence-transformers/all-mpnet-base-v2"
+  # Number of relevant document chunks to retrieve for context.
+  top_k: 5
+  # Directory relative to the project root where the FAISS index is stored.
+  # Overridden by FAISS_INDEX_PATH environment variable if set.
+  index_path: "data/rag_data/realtime_data_index"
+
+# --- Local Intent Classifier Configuration ---
+classifier:
+  # Model for local intent classification (url, misinfo, factual).
+  # "facebook/bart-large-mnli" is a good zero-shot model.
+  # If you fine-tune a specific model later, update this.
+  model_name: "facebook/bart-large-mnli"
+  # Directory to cache the downloaded transformer model files. Relative to project root.
+  cache_dir: "./model_cache"
+  # The specific labels the classifier should predict. Must match classifier.py.
+  labels:
+    - "url"
+    - "misinfo"
+    - "factual"
+
+# --- Data Ingestion Sources ---
 data_sources:
-  BBC": "http://feeds.bbci.co.uk/news/rss.xml"
-  NYTimes": "https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml"
+  # List of trusted RSS feeds to ingest for the RAG database.
+  # Keys are descriptive names, values are feed URLs.
+  # Use {query} for sources that support search terms (like Google News).
+  BBC_World: "http://feeds.bbci.co.uk/news/world/rss.xml" # Corrected key
+  # NYTimes_Tech: "https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml" # Corrected key
+  Reuters_TopNews: "https://www.reuters.com/tools/rss"
+  # Add more diverse, high-quality news sources relevant to your target domain.
+  # Example Google News (requires a default_rss_query below or specific logic):
+  # Google_News_Search: "https://news.google.com/rss/search?q={query}"
+
+ingestion:
+  # Max number of articles to fetch from each feed during one ingestion cycle.
+  max_articles_per_feed: 10
+  # Default search query to use for feeds with {query} if not overridden elsewhere.
+  default_rss_query: "current events"
+
+# --- Application Settings ---
+logging:
+  # Log level for the application (DEBUG, INFO, WARNING, ERROR, CRITICAL).
+  level: "INFO"
+
+cache:
+  # Default Time-To-Live (TTL) in seconds for cached API responses. 300s = 5 minutes.
+  default_ttl_seconds: 300
+
+security:
+  # Enable or disable API Key authentication.
+  # Set to false for local development *only* if needed, requires code change in main.py dependency.
+  # Keep true for any deployment or shared environment.
+  enable_api_key_auth: true
+
+# --- Optional: Server Host/Port/CORS (Usually handled by deployment/uvicorn command) ---
+# These are commented out as they are typically configured via environment variables
+# or the uvicorn command line, but can be defined here if preferred.
+# api:
+#   host: "0.0.0.0"  # Listen on all network interfaces (useful for Docker/VMs)
+#   port: 8000       # Default port
+#   cors_allowed_origins:
+#     # List of allowed origins for Cross-Origin Resource Sharing (CORS).
+#     # VERY IMPORTANT: Replace with your actual Flutter frontend URL in production.
+#     # Using ["*"] is insecure for production but okay for initial local testing.
+#     - "http://localhost:XXXX"  # Replace XXXX with your Flutter dev server port
+#     - "http://127.0.0.1:XXXX"

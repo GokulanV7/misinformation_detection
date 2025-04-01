@@ -1,14 +1,18 @@
-fastapi==0.110.1
-uvicorn==0.31.1
+# requirements.txt
+fastapi==0.110.1        # Or your current version
+uvicorn[standard]==0.31.1  # Use [standard] for websockets/http tools if needed later
 python-dotenv==1.0.1
-requests==2.31.0
-pydantic
-fastapi-middleware==0.1.0
-langchain==0.2.0
-tiktoken
-faiss-cpu
+httpx==0.27.0           # Async HTTP client (REPLACES requests)
+logging                   # Standard library
 PyYAML==6.0.1
-beautifulsoup4==4.12.3
-langchain-community
-sentence-transformers
-feedparser
+langchain==0.2.0          # Or your current version
+langchain-community==0.2.0 # Embeddings moved here
+faiss-cpu
+sentence-transformers==2.7.0 # Or compatible version
+transformers==4.43.3       # For local classification model
+torch             # PyTorch (required by transformers) - adjust CPU/GPU as needed
+redis==5.0.7              # Redis client
+fastapi-cache2[redis] # Redis caching for FastAPI
+feedparser==6.0.11
+pydantic==2.7.0
+# Removed requests as httpx replaces it
