@@ -1,99 +1,107 @@
-# config/config.yaml
-# Configuration for the Misinformation Detection API
-
 # --- Groq LLM Configuration ---
 groq:
-  # Recommended high-performance model available on Groq (as of mid-2024).
-  # Verify available models: https://console.groq.com/docs/models
-  # Alternatives: "mixtral-8x7b-32768" (often faster) or "llama3-8b-8192" (smaller)
   model: "llama3-70b-8192"
-  # Lower temperature for more deterministic, factual responses (0.0-1.0).
-  # 0.1 is good for analysis/factual tasks.
   temperature: 0.1
-  # Timeout in seconds for waiting for a response from the Groq API.
-  request_timeout: 30
+  request_timeout: 45 # Increased slightly for complex tasks
+  check_rag_sufficiency_prompt: >
+    You are an evaluator assessing context relevance. Based *only* on the provided text snippets labeled 'CONTEXT', can you definitively and completely answer the 'USER QUERY'?
+    Answer only with "YES", "NO", or "PARTIALLY" followed by a very brief (1 sentence) justification. Do not attempt to answer the user query itself.
+    USER QUERY: "{query}"
+    CONTEXT:
+    {context}
+    Your Evaluation:
 
 # --- VirusTotal Configuration ---
 virustotal:
-  # Base URL for the VirusTotal v3 API.
   api_url: "https://www.virustotal.com/api/v3/urls"
-  # Default assessment if VT doesn't clearly classify as malicious/suspicious.
-  default_assessment: "Safe"
-  # Timeout in seconds for VirusTotal API requests.
   request_timeout: 20
+  malicious_threshold: 3 # Number of engines flagging as malicious to trigger higher suspicion
 
-# --- Retrieval-Augmented Generation (RAG) Configuration ---
+# --- IPQualityScore Configuration ---
+ipqualityscore:
+  url_check_api_url: "https://ipqualityscore.com/api/json/url/" # Verify exact endpoint
+  request_timeout: 20
+  high_risk_threshold: 85   # Score >= this is high risk
+  medium_risk_threshold: 60 # Score >= this is medium risk
+
+# --- URLScan.io Configuration ---
+urlscan:
+  search_api_url: "https://urlscan.io/api/v1/search/"
+  # submit_api_url: "https://urlscan.io/api/v1/scan/" # Optional: Submission is slow
+  request_timeout: 25
+  poll_timeout: 60 # If polling after submission (less likely used now)
+  poll_interval: 10
+
+# --- Search API (Example: SearchApi.io) Configuration ---
+search_api:
+  # Use 'google' or other engine supported by your provider
+  engine: "google"
+  # Ensure the SDK or your manual implementation uses the correct URL
+  request_timeout: 20
+  results_count: 5 # Number of search snippets to retrieve
+  web_synthesis_prompt: >
+    Based *only* on the following web search result snippets, provide a concise answer to the original user query.
+    Clearly state if the information is contradictory or unavailable in the snippets. Cite the source URLs briefly where possible.
+    USER QUERY: "{query}"
+    SEARCH SNIPPETS:
+    {snippets}
+    Answer:
+
+# --- Cohere Configuration ---
+cohere:
+  rerank_model: "rerank-english-v3.0" # Check latest available models
+  rerank_top_n: 3 # Return top N documents after re-ranking
+
+# --- RAG Configuration ---
 rag:
-  # Target size for text chunks when indexing data. May need tuning.
   chunk_size: 1000
-  # Number of characters overlapping between chunks to preserve context.
   chunk_overlap: 200
-  # Embedding model for converting text to vectors.
-  # "all-mpnet-base-v2" is a strong, free, widely-used default.
-  # Ensure this model is compatible with the FAISS index if reusing an old one.
   embedding_model: "sentence-transformers/all-mpnet-base-v2"
-  # Number of relevant document chunks to retrieve for context.
-  top_k: 5
-  # Directory relative to the project root where the FAISS index is stored.
-  # Overridden by FAISS_INDEX_PATH environment variable if set.
-  index_path: "data/rag_data/realtime_data_index"
+  # Retrieve more initially for the re-ranker to work on
+  retrieval_multiplier: 3 # retrieve top_k * multiplier initially
+  # The final number of docs to use after re-ranking (see cohere.rerank_top_n)
+  # This config is less critical now if relying on Cohere top_n
+  # top_k: 5 # Keep for fallback if re-ranking fails? Maybe redundant.
+  index_path: "data/rag_data/specialized_topic_index" # IMPORTANT: Use new path
+  hybrid_search_weight: 0.5 # Example if implementing manual hybrid alpha
 
-# --- Local Intent Classifier Configuration ---
+# --- Local Intent Classifier ---
 classifier:
-  # Model for local intent classification (url, misinfo, factual).
-  # "facebook/bart-large-mnli" is a good zero-shot model.
-  # If you fine-tune a specific model later, update this.
   model_name: "facebook/bart-large-mnli"
-  # Directory to cache the downloaded transformer model files. Relative to project root.
   cache_dir: "./model_cache"
-  # The specific labels the classifier should predict. Must match classifier.py.
   labels:
     - "url"
     - "misinfo"
     - "factual"
 
-# --- Data Ingestion Sources ---
-data_sources:
-  # List of trusted RSS feeds to ingest for the RAG database.
-  # Keys are descriptive names, values are feed URLs.
-  # Use {query} for sources that support search terms (like Google News).
-  BBC_World: "http://feeds.bbci.co.uk/news/world/rss.xml" # Corrected key
-  # NYTimes_Tech: "https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml" # Corrected key
-  Reuters_TopNews: "https://www.reuters.com/tools/rss"
-  # Add more diverse, high-quality news sources relevant to your target domain.
-  # Example Google News (requires a default_rss_query below or specific logic):
-  # Google_News_Search: "https://news.google.com/rss/search?q={query}"
+# --- Knowledge Graph Configuration ---
+knowledge_graph:
+  storage_path: "data/kg_store/knowledge_graph.gpickle"
+  # Define relevant entity types for your topic
+  entity_types: ["PERSON", "ORG", "GPE", "EVENT", "WORK_OF_ART", "LAW", "PRODUCT"] # Adjust as needed
+  query_depth: 1 # How many hops to explore when querying
 
-ingestion:
-  # Max number of articles to fetch from each feed during one ingestion cycle.
-  max_articles_per_feed: 10
-  # Default search query to use for feeds with {query} if not overridden elsewhere.
-  default_rss_query: "current events"
+# --- Web Scraper (org12.py related, if using its output) ---
+# data_sources: ... (Your chosen sources)
+# ingestion: ... (Settings for org12.py)
+# mongo: # If org12.py saves to MongoDB
+#   db_name: "your_topic_db"
+#   collection_name: "articles"
 
 # --- Application Settings ---
 logging:
-  # Log level for the application (DEBUG, INFO, WARNING, ERROR, CRITICAL).
-  level: "INFO"
+  level: "DEBUG"
 
 cache:
-  # Default Time-To-Live (TTL) in seconds for cached API responses. 300s = 5 minutes.
-  default_ttl_seconds: 300
+  default_ttl_seconds: 600 # 10 minutes TTL for API responses
+  # Optionally add TTLs for specific API utils if desired
+  # vt_ttl_seconds: 3600 # Cache VT results for 1 hour
 
 security:
-  # Enable or disable API Key authentication.
-  # Set to false for local development *only* if needed, requires code change in main.py dependency.
-  # Keep true for any deployment or shared environment.
-  enable_api_key_auth: true
+  enable_api_key_auth: false # Keep True for deployment
 
-# --- Optional: Server Host/Port/CORS (Usually handled by deployment/uvicorn command) ---
-# These are commented out as they are typically configured via environment variables
-# or the uvicorn command line, but can be defined here if preferred.
+# --- Optional Server Config (usually via uvicorn command) ---
 # api:
-#   host: "0.0.0.0"  # Listen on all network interfaces (useful for Docker/VMs)
-#   port: 8000       # Default port
-#   cors_allowed_origins:
-#     # List of allowed origins for Cross-Origin Resource Sharing (CORS).
-#     # VERY IMPORTANT: Replace with your actual Flutter frontend URL in production.
-#     # Using ["*"] is insecure for production but okay for initial local testing.
-#     - "http://localhost:XXXX"  # Replace XXXX with your Flutter dev server port
-#     - "http://127.0.0.1:XXXX"
+#   host: "0.0.0.0"
+#   port: 8000
+#   cors_allowed_origins: ["http://localhost:XXXX", "http://127.0.0.1:XXXX"] # Flutter dev port

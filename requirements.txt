@@ -1,18 +1,36 @@
-# requirements.txt
-fastapi==0.110.1        # Or your current version
-uvicorn[standard]==0.31.1  # Use [standard] for websockets/http tools if needed later
-python-dotenv==1.0.1
-httpx==0.27.0           # Async HTTP client (REPLACES requests)
-logging                   # Standard library
-PyYAML==6.0.1
-langchain==0.2.0          # Or your current version
-langchain-community==0.2.0 # Embeddings moved here
-faiss-cpu
-sentence-transformers==2.7.0 # Or compatible version
-transformers==4.43.3       # For local classification model
-torch             # PyTorch (required by transformers) - adjust CPU/GPU as needed
-redis==5.0.7              # Redis client
-fastapi-cache2[redis] # Redis caching for FastAPI
-feedparser==6.0.11
-pydantic==2.7.0
-# Removed requests as httpx replaces it
+# Core FastAPI & Web
+fastapi==0.111.*
+uvicorn[standard]==0.29.*
+pydantic==2.7.*
+python-dotenv==1.0.*
+PyYAML==6.0.*
+httpx==0.27.*
+requests==2.31.* # requests might still be used by libraries
+
+# LangChain & RAG
+langchain==0.1.*
+langchain-community==0.0.* # Check latest compatible versions
+faiss-cpu==1.8.* # Or faiss-gpu if you have CUDA setup
+sentence-transformers==2.7.*
+# If using LangChain's Cohere integration:
+langchain-cohere==0.1.*
+
+# NLP & Utilities
+nltk==3.8.*
+spacy==3.7.*
+# Download spacy model separately: python -m spacy download en_core_web_sm
+transformers==4.41.*
+torch==2.2.* # Or torch appropriate for your system (CPU/CUDA/MPS)
+networkx==3.3.*
+pandas==2.2.* # For CSV ingestion
+
+# Caching
+fastapi-cache2[redis]==0.2.*
+redis
+
+# Search API SDK (Example - install the one you chose)
+# google-api-python-client # If using Google Custom Search JSON API
+# searchapi-python # If using SearchApi.io Python SDK
+
+# Cohere SDK (if calling directly, optional if langchain-cohere works)
+cohere==5.3.*

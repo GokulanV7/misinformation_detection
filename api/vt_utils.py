@@ -1,153 +1,225 @@
 # api/vt_utils.py
-import httpx # Use httpx
-import base64
 import logging
-import yaml
-import asyncio # For potential sleep
-from typing import Dict, Any
+import httpx
+import os
+import time
+import asyncio
+from base64 import urlsafe_b64encode
+from typing import Dict, Any, Optional
 
-logger = logging.getLogger(__name__)
+from dotenv import load_dotenv
 
-def load_config(config_path="config/config.yaml"):
-    """Load configuration from the YAML file."""
-    with open(config_path, 'r') as f:
-        return yaml.safe_load(f)
+# --- Custom Exception Imports ---
+try:
+    from .utils import get_config, RateLimitException, ApiException, sanitize_url_for_scan
+except ImportError:
+    print("Warning: Running vt_utils possibly standalone. Trying relative path for utils.")
+    from utils import get_config, RateLimitException, ApiException, sanitize_url_for_scan # type: ignore
 
-config = load_config()
-# REMOVED hardcoded placeholder: VIRUSTOTAL_API_KEY = ""
+# --- Setup ---
+load_dotenv()
+logger = logging.getLogger(__name__) # Standard logger name
+CONFIG = get_config()
+VT_CONFIG = CONFIG.get('virustotal', {}) # Use .get() for safety
+API_KEY = os.getenv("VIRUSTOTAL_API_KEY")
+# API V3 uses different base URLs for different endpoints typically
+# Base for URLs endpoint:
+URLS_ENDPOINT_BASE = VT_CONFIG.get('api_url', "https://www.virustotal.com/api/v3/urls")
+# Base for analyses endpoint (if polling were used):
+# ANALYSES_ENDPOINT_BASE = "https://www.virustotal.com/api/v3/analyses"
+REQUEST_TIMEOUT = VT_CONFIG.get('request_timeout', 20)
+MALICIOUS_THRESHOLD = VT_CONFIG.get('malicious_threshold', 3) # Use from config
 
-# Define VirusTotal API endpoint
-VIRUSTOTAL_API_URL = config['virustotal']['api_url'] # Use config
 
-async def check_url_safety(url: str, api_key: str, timeout: int = 20) -> Dict[str, Any]:
+# --- Helper Function for VT Requests ---
+async def _make_vt_request(method: str, endpoint_url: str, headers: Dict[str, str],
+                          params: Optional[Dict] = None, data: Optional[Dict] = None,
+                          json_payload: Optional[Dict] = None) -> httpx.Response:
     """
-    Checks URL safety using VirusTotal API asynchronously.
-    Handles getting existing reports or submitting new URLs.
+    Makes an async request to a VirusTotal endpoint and handles common errors.
+    Raises RateLimitException or ApiException on relevant errors.
     """
-    if not api_key:
-        logger.error("VirusTotal API Key is missing.")
-        return {"error": "VirusTotal API Key not configured."}
-
-    headers = {
-        "x-apikey": api_key,
-        "accept": "application/json" # Ensure we get JSON back
-    }
-    url_id = base64.urlsafe_b64encode(url.encode()).decode().strip("=")
-    report_url = f"{VIRUSTOTAL_API_URL}/{url_id}"
-
-    async with httpx.AsyncClient(timeout=timeout) as client:
+    # Note: Using temporary clients here for simplicity, but a shared client is also possible.
+    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT + 5, headers=headers) as client:
+        request_start_time = time.monotonic()
+        logger.debug(f"Sending {method} request to VirusTotal: {endpoint_url}")
+        response = None
         try:
-            # 1. Try to get an existing report
-            logger.info(f"Checking VirusTotal for existing report: {url}")
-            response = await client.get(report_url, headers=headers)
-
-            if response.status_code == 200:
-                logger.info(f"Found existing VirusTotal report for URL: {url}")
-                result = response.json()
-                return _parse_vt_result(result, url) # Parse the result directly
-
-            elif response.status_code == 404:
-                # 2. URL not found, submit it for analysis
-                logger.info(f"URL not found in VirusTotal, submitting for analysis: {url}")
-                submit_data = {"url": url}
-                # VirusTotal submission expects 'application/x-www-form-urlencoded'
-                headers_submit = headers.copy()
-                headers_submit['content-type'] = 'application/x-www-form-urlencoded'
-                submit_response = await client.post(VIRUSTOTAL_API_URL, headers=headers_submit, data=submit_data)
-
-                if submit_response.status_code == 200:
-                    submit_result = submit_response.json()
-                    analysis_id = submit_result.get("data", {}).get("id")
-                    if not analysis_id:
-                         logger.error("Failed to get analysis ID after submission.")
-                         return {"error": "VirusTotal submission succeeded but no analysis ID returned."}
-
-                    logger.info(f"URL submitted successfully. Analysis ID: {analysis_id}. Waiting for report...")
-                    # Optionally: Poll the analysis endpoint - this can take time!
-                    # For a simple API, returning a "pending" status might be better
-                    # than blocking the request here for potentially minutes.
-                    # For now, we'll just indicate it's submitted.
-                    # A more robust solution would use webhooks or background tasks.
-                    await asyncio.sleep(10) # Give VT some time (very basic polling)
-                    poll_url = f"https://www.virustotal.com/api/v3/analyses/{analysis_id}"
-                    poll_response = await client.get(poll_url, headers=headers)
-                    if poll_response.status_code == 200:
-                        poll_result = poll_response.json()
-                        # The actual results are linked, need to fetch the final URL report again
-                        final_report_url = poll_result.get("meta", {}).get("url_info", {}).get("links",{}).get("self")
-                        if final_report_url:
-                             final_response = await client.get(final_report_url, headers=headers)
-                             if final_response.status_code == 200:
-                                 return _parse_vt_result(final_response.json(), url)
-
-                    return {"status": "submitted", "message": "URL submitted to VirusTotal for analysis. Check back later."}
-
-
-                else:
-                    logger.error(f"VirusTotal submission failed. Status: {submit_response.status_code}, Response: {submit_response.text}")
-                    return {"error": f"VirusTotal submission failed (Status: {submit_response.status_code})", "details": submit_response.text}
+            if method.upper() == 'GET':
+                response = await client.get(endpoint_url, params=params)
+            elif method.upper() == 'POST':
+                # VT POST /urls expects x-www-form-urlencoded *data*, not JSON
+                response = await client.post(endpoint_url, data=data, json=json_payload)
             else:
-                # Handle other unexpected status codes
-                response.raise_for_status() # Raise error for other non-200, non-404 codes
+                raise ValueError(f"Unsupported HTTP method for VT: {method}")
 
-        except httpx.HTTPStatusError as e:
-             logger.error(f"VirusTotal API HTTP Error {e.response.status_code}: {e.response.text} for URL {url}")
-             return {"error": f"VirusTotal API HTTP Error {e.response.status_code}", "details": e.response.text}
-        except httpx.RequestError as e:
-             logger.error(f"VirusTotal API Request Error: {e} for URL {url}")
-             return {"error": f"VirusTotal API connection error: {str(e)}"}
-        except Exception as e:
-             logger.error(f"Unexpected error processing VirusTotal URL analysis: {e} for URL {url}", exc_info=True)
-             return {"error": f"Unexpected error during VirusTotal analysis: {str(e)}"}
+            request_duration = time.monotonic() - request_start_time
+            logger.debug(f"VirusTotal response received in {request_duration:.3f}s. Status: {response.status_code}")
 
-    # Should not be reached if using async with, but added for safety
-    return {"error": "Failed to process VirusTotal request."}
+            # --- Specific Error Checks ---
+            if response.status_code == 429:
+                logger.warning(f"VirusTotal rate limit hit (Status 429) for {endpoint_url}")
+                raise RateLimitException("VirusTotal API rate limit exceeded.")
+            if response.status_code == 401: # Unauthorized
+                logger.error("VirusTotal API Unauthorized (Status 401). Check API Key.")
+                raise ApiException("VirusTotal API key is invalid or expired.")
+            # Check for other 4xx/5xx errors specifically
+            if response.status_code >= 400:
+                error_message = f"VirusTotal API error {response.status_code}"
+                try: error_details = response.json() # VT usually returns JSON errors
+                except Exception: error_details = response.text
+                error_message += f": {error_details}"
+                logger.error(error_message)
+                raise ApiException(error_message)
+            # --- End Error Checks ---
+
+            return response # Return successful response object
+
+        # Handle client-side/network errors separately
+        except httpx.TimeoutException:
+            logger.warning(f"VirusTotal request timed out for {endpoint_url}")
+            raise ApiException(f"VirusTotal request timed out ({REQUEST_TIMEOUT}s).")
+        except httpx.RequestError as req_err:
+            logger.error(f"Network error contacting VirusTotal for {endpoint_url}: {req_err}")
+            raise ApiException(f"Network error contacting VirusTotal: {req_err}")
 
 
-def _parse_vt_result(result: Dict[str, Any], original_url: str) -> Dict[str, Any]:
-    """Helper function to parse the JSON response from VirusTotal API."""
-    attributes = result.get("data", {}).get("attributes", {})
+# --- Main Function to Check URL ---
+async def check_virustotal(url: str) -> Optional[dict]:
+    """
+    Checks a URL against VirusTotal API v3. Gets report ONLY. Does NOT submit or poll.
+
+    Args:
+        url: The URL to check (should be pre-sanitized).
+
+    Returns:
+        Dictionary with VT analysis results ('attributes', 'type', 'id') if report exists,
+        otherwise None (including cases of 404 Not Found, errors, or no API key).
+    Raises:
+        RateLimitException: If VT API rate limit is hit.
+        ApiException: For other VT API errors or configuration issues.
+    """
+    if not API_KEY:
+        logger.error("VIRUSTOTAL_API_KEY not set. Cannot check VirusTotal.")
+        # Application should handle this state gracefully, raising makes sense
+        raise ApiException("VirusTotal API Key not configured.")
+
+    # Ensure URL is reasonably clean before generating ID
+    # url_sanitized = sanitize_url_for_scan(url) # Assuming sanitization happens *before* this call now
+
+    # URL ID for VT is base64 of the *exact* URL string VT expects
+    # Using the passed 'url' directly, assuming it's correctly formatted.
+    try:
+         url_id = urlsafe_b64encode(url.encode()).decode().strip("=")
+    except Exception as e:
+         logger.error(f"Failed to generate VirusTotal URL ID for {url}: {e}")
+         raise ValueError(f"Invalid URL format for VirusTotal ID generation: {url}")
+
+
+    headers = {"x-apikey": API_KEY, "Accept": "application/json"}
+    report_endpoint_url = f"{URLS_ENDPOINT_BASE}/{url_id}" # V3 format
+
+    try:
+        logger.info(f"Checking VirusTotal report for URL ID: {url_id} (URL: {url[:60]}...)")
+        response = await _make_vt_request('GET', report_endpoint_url, headers=headers)
+
+        # Only process successful 200 responses
+        if response.status_code == 200:
+            report_data = response.json()
+            # Check if the report contains actual analysis results
+            attributes = report_data.get("data", {}).get("attributes", {})
+            stats = attributes.get("last_analysis_stats", {})
+            if not stats or sum(stats.values()) == 0:
+                 logger.info(f"VirusTotal report found for {url_id}, but analysis appears incomplete or pending.")
+                 # Treat pending analysis same as not found for immediate checks
+                 return None # Return None if analysis isn't ready
+            else:
+                 logger.info(f"Found existing completed VirusTotal analysis for {url_id}.")
+                 return report_data.get("data") # Return the main 'data' object containing attributes etc.
+
+        # Should not be reached due to error checks in _make_vt_request, but as safety:
+        logger.warning(f"Unexpected status code {response.status_code} fetching VT report for {url_id}. Treating as 'not found'.")
+        return None
+
+
+    except ApiException as e:
+         # Specific check for 404 Not Found, which is *not* an error in this context
+         if "404" in str(e):
+              logger.info(f"URL not found in VirusTotal database: {url_id} (URL: {url[:60]}...).")
+              return None # 404 means no report exists, return None
+         else:
+              # Re-raise other API errors (401, 429, 5xx, etc.)
+              logger.error(f"VirusTotal API Error fetching report for {url}: {e}")
+              raise e
+    # Catch RateLimitException specifically if needed
+    except RateLimitException as rle:
+         logger.error(f"VirusTotal Rate Limit hit fetching report for {url}: {rle}")
+         raise rle # Re-raise
+    except Exception as e:
+         # Catch unexpected errors during the process
+         logger.error(f"Unexpected error during VirusTotal check for {url}: {e}", exc_info=True)
+         # Raising ApiException here informs the caller of failure
+         raise ApiException(f"Unexpected error during VirusTotal check: {e}")
+
+    # Fallback if logic has issues
+    # return None
+
+
+def parse_vt_result(vt_data: Optional[Dict]) -> Dict[str, Any]:
+    """
+    Parses the raw VirusTotal data object (expects the 'data' part of the full response).
+
+    Returns a dictionary structured for the consolidation logic, including a 'status'.
+    """
+    if not vt_data or not isinstance(vt_data, dict) or 'attributes' not in vt_data:
+        return {"status": "error", "details": "Invalid or missing VirusTotal data object passed to parser."}
+
+    attributes = vt_data.get('attributes', {})
     if not attributes:
-        return {"url": original_url, "status": "error", "message": "No attributes found in VirusTotal response."}
+         return {"status": "error", "details": "Missing 'attributes' in VirusTotal data."}
 
-    last_analysis_stats = attributes.get("last_analysis_stats", {})
-    if not last_analysis_stats:
-         # Can happen if analysis is queued or just finished with no engine results yet
-         return {"url": original_url, "status": "pending", "message": "VirusTotal analysis is pending or has no results yet."}
 
-    total_engines = sum(last_analysis_stats.values()) or 1
-    harmless_count = last_analysis_stats.get("harmless", 0)
-    malicious_count = last_analysis_stats.get("malicious", 0)
-    suspicious_count = last_analysis_stats.get("suspicious", 0)
+    stats = attributes.get('last_analysis_stats')
+    # Handle cases where stats are missing or empty (should have been caught by check_virustotal ideally)
+    if not stats or not isinstance(stats, dict) or sum(stats.values()) == 0:
+        logger.warning("Parsing VT result: last_analysis_stats missing or empty. Treating as incomplete.")
+        return {"status": "pending", "details": "Analysis results not available or incomplete."}
 
-    safety_score = (harmless_count / total_engines) * 100
-    danger_score = ((malicious_count + suspicious_count) / total_engines) * 100
+    malicious_count = stats.get('malicious', 0)
+    suspicious_count = stats.get('suspicious', 0)
+    harmless_count = stats.get('harmless', 0)
+    undetected_count = stats.get('undetected', 0)
+    total_engines = sum(stats.values())
 
-    # Get assessment and safety category from configuration
-    default_assessment = config['virustotal']['default_assessment']
-    assessment = default_assessment
+    # Determine assessment based on counts and threshold from config
+    assessment = "unknown"
+    if malicious_count >= MALICIOUS_THRESHOLD:
+         assessment = "malicious"
+    elif malicious_count > 0 or suspicious_count > 0:
+         assessment = "suspicious"
+    # Condition for 'likely_safe': primarily harmless/undetected votes
+    elif (harmless_count + undetected_count) >= (total_engines * 0.9) and malicious_count == 0 and suspicious_count == 0 : # e.g. 90% safe/undetected
+         assessment = "likely_safe"
+    else: # Other combinations might be uncertain or need finer rules
+         assessment = "uncertain"
 
-    if malicious_count > 0:
-        assessment = "Malicious"
-    elif suspicious_count > 0:
-        assessment = "Suspicious"
-    # Add specific check for potentially unwanted applications (PUA) if needed
-    # elif last_analysis_stats.get("undetected", 0) < total_engines * 0.1: # Example heuristic
-    #     assessment = "Potentially Unwanted"
 
-    simplified_result = {
-        "url": attributes.get("url", original_url), # Use URL from VT if available
-        "status": "completed", # Indicate the scan itself finished
-        "scan_stats": last_analysis_stats,
-        "last_analysis_date": attributes.get("last_analysis_date"),
-        "reputation": attributes.get("reputation", 0),
-        "title": attributes.get("title", "N/A"),
-        "assessment": assessment,
-        "safety_score": round(safety_score, 1),
-        "danger_score": round(danger_score, 1),
-        "categories": attributes.get("categories", {}),
-        "total_votes": attributes.get("total_votes", {})
+    return {
+        "status": "success", # Parsing successful, report contained results
+        "details": {
+            "assessment": assessment, # derived category
+            "malicious_count": malicious_count,
+            "suspicious_count": suspicious_count,
+            "harmless_count": harmless_count,
+            "undetected_count": undetected_count,
+            "total_engines": total_engines,
+            "positives": malicious_count + suspicious_count, # Often used metric
+            "last_analysis_timestamp": attributes.get('last_analysis_date'), # Keep timestamp
+            # Convert timestamp to readable string if needed here or in main logic
+            # "last_analysis_date_human": time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime(attributes.get('last_analysis_date', 0))),
+            "reputation": attributes.get("reputation", 0),
+            "categories": attributes.get("categories", {}), # Dictionary of vendor categories
+            "total_votes": attributes.get("total_votes", {}), # Community votes (harmless/malicious)
+            "url_analysed": attributes.get("url", "N/A") # The URL VT actually analysed
+        }
     }
-
-    logger.info(f"VirusTotal analysis complete for {original_url}. Assessment: {assessment}")
-    return simplified_result

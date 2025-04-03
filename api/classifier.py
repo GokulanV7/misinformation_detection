@@ -1,99 +1,173 @@
 # api/classifier.py
 import logging
-from transformers import pipeline, AutoModelForSequenceClassification, AutoTokenizer
+# REMOVED: from transformers import pipeline, AutoModelForSequenceClassification, AutoTokenizer
+# Use only the pipeline for zero-shot
+from transformers import pipeline
 import torch
 import os
+from typing import Tuple
 
-logger = logging.getLogger(__name__)
 
-MODEL_NAME = "distilbert-base-uncased-finetuned-sst-2-english" # A common lightweight choice
-CLASSIFIER_CACHE_DIR = "./model_cache" # Optional: Cache downloaded models
+# Ensure utils can be imported for config
+try:
+    from .utils import get_config
+except ImportError:
+    # Fallback for potential standalone testing
+    print("Warning: Could not import get_config from .utils. Configuration might be hardcoded.")
+    # Define a dummy get_config or hardcode values if testing standalone
+    def get_config(): return {
+        "classifier": {
+            "model_name": "facebook/bart-large-mnli", # Default if config fails
+            "cache_dir": "./model_cache",
+            "labels": ["url", "misinfo", "factual"]
+        }
+    }
 
-# Define the labels your classifier should predict
-LABELS = ["url", "misinfo", "factual"] # Ensure order matches potential model training if you fine-tune
-ID2LABEL = {i: label for i, label in enumerate(LABELS)}
-LABEL2ID = {label: i for i, label in enumerate(LABELS)}
+logger = logging.getLogger(__name__) # Use standard logger name
 
-classifier = None
-tokenizer = None
+# --- Get Configuration ---
+CONFIG = get_config()
+CLASSIFIER_CONFIG = CONFIG.get('classifier', {}) # Use .get() for safety
+# Read parameters from config
+MODEL_NAME = CLASSIFIER_CONFIG.get('model_name', 'facebook/bart-large-mnli') # Use config, provide default
+CACHE_DIR = CLASSIFIER_CONFIG.get('cache_dir', './model_cache')
+LABELS = CLASSIFIER_CONFIG.get('labels', ["url", "misinfo", "factual"]) # Use config labels
 
-def load_classifier_model():
-    """Loads the classification model and tokenizer only once."""
-    global classifier, tokenizer
-    if classifier is None:
+# REMOVED unused ID2LABEL / LABEL2ID mappings
+# ID2LABEL = {i: label for i, label in enumerate(LABELS)}
+# LABEL2ID = {label: i for i, label in enumerate(LABELS)}
+
+# Use consistent naming for the pipeline instance
+_classifier_pipeline = None # Renamed from classifier
+# REMOVED global tokenizer (not needed for zero-shot pipeline)
+# tokenizer = None
+
+def load_classifier() -> bool:
+    """
+    Loads the zero-shot classification pipeline. Returns True on success.
+    Reads configuration from central config.
+    """
+    global _classifier_pipeline # Use the consistent name
+    # Check if already loaded
+    if _classifier_pipeline is not None:
+        return True
+    # Check if transformers library was imported successfully
+    if pipeline is None:
+         logger.error("Transformers library failed to import. Cannot load classifier.")
+         return False
+
+    logger.info(f"Attempting to load classifier model '{MODEL_NAME}' from Hugging Face Hub...")
+    try:
+        # Ensure cache directory exists if specified
+        if CACHE_DIR and not os.path.exists(CACHE_DIR):
+             try:
+                  os.makedirs(CACHE_DIR)
+                  logger.info(f"Created cache directory: {CACHE_DIR}")
+             except OSError as e:
+                  logger.warning(f"Could not create cache directory {CACHE_DIR}: {e}. Using default Hugging Face cache.")
+                  # If dir creation fails, pipeline will use default HF cache
+
+        # Determine device (CPU, CUDA, MPS) - standard logic
+        device_type = "cpu"
+        device_arg = -1 # Default pipeline device index for CPU
         try:
-            logger.info(f"Loading classification model: {MODEL_NAME}")
-            # Ensure cache directory exists if specified
-            if CLASSIFIER_CACHE_DIR and not os.path.exists(CLASSIFIER_CACHE_DIR):
-                os.makedirs(CLASSIFIER_CACHE_DIR)
+            if torch.cuda.is_available():
+                 device_type = "cuda"
+                 device_arg = 0 # Use first CUDA device
+            elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+                 # Try loading directly onto MPS device object if possible
+                 device_type = "mps"
+                 mps_device = torch.device("mps")
+                 logger.info("Attempting to load classifier onto MPS device...")
+                 _classifier_pipeline = pipeline(
+                      "zero-shot-classification",
+                      model=MODEL_NAME,
+                      tokenizer=MODEL_NAME, # Specify tokenizer explicitly
+                      device=mps_device, # Use device object
+                      cache_dir=CACHE_DIR
+                 )
+                 logger.info(f"Zero-shot classifier '{MODEL_NAME}' loaded successfully onto MPS device.")
+                 return True # Return early if successful on MPS
+        except Exception as mps_err:
+            logger.warning(f"Failed to load classifier onto MPS device ({mps_err}). Falling back.")
+            device_type = "cpu" # Reset to CPU for standard loading
+            device_arg = -1
 
-            # Load model and tokenizer
-            # Note: If the base distilbert model hasn't been fine-tuned for *your specific 3 labels*,
-            # its predictions might be less accurate than desired.
-            # Using a base sentiment model like sst-2 is a starting point,
-            # but fine-tuning on your task (url/misinfo/factual) is ideal for high accuracy.
-            # For now, we'll map its outputs conceptually. A better approach would use
-            # a model specifically trained or fine-tuned for multi-class intent detection.
 
-            # Simpler approach for now: Use zero-shot classification pipeline
-            # This is more flexible if you don't have a fine-tuned model
-            classifier = pipeline(
-                "zero-shot-classification",
-                model="facebook/bart-large-mnli", # A decent zero-shot model
-                tokenizer="facebook/bart-large-mnli",
-                device=0 if torch.cuda.is_available() else -1, # Use GPU if available
-                cache_dir=CLASSIFIER_CACHE_DIR
-            )
+        # Standard load for CPU/CUDA using device index
+        logger.info(f"Using device: {device_type.upper()} (pipeline index: {device_arg}) for classifier model.")
+        _classifier_pipeline = pipeline(
+            "zero-shot-classification",
+            model=MODEL_NAME,
+            tokenizer=MODEL_NAME, # Specify tokenizer explicitly
+            device=device_arg, # Use device index
+            cache_dir=CACHE_DIR
+        )
+        logger.info(f"Zero-shot classifier '{MODEL_NAME}' loaded successfully.")
+        return True
 
-            logger.info("Classification model loaded successfully.")
+        # REMOVED commented out sequence classification code block
 
-            # The code below is for a sequence classification model (if you fine-tune one later)
-            # model = AutoModelForSequenceClassification.from_pretrained(
-            #     MODEL_NAME,
-            #     num_labels=len(LABELS),
-            #     id2label=ID2LABEL,
-            #     label2id=LABEL2ID,
-            #     cache_dir=CLASSIFIER_CACHE_DIR
-            # )
-            # tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, cache_dir=CLASSIFIER_CACHE_DIR)
-            # device = "cuda" if torch.cuda.is_available() else "cpu"
-            # classifier = pipeline(
-            #     "text-classification",
-            #     model=model,
-            #     tokenizer=tokenizer,
-            #     device=0 if device == "cuda" else -1 # pipeline expects device index
-            # )
-            # logger.info(f"Classification pipeline loaded successfully on device: {device}")
+    except ImportError: # Catch potential errors if transformers wasn't fully available
+        logger.error("Transformers library might be incomplete. Failed loading pipeline.", exc_info=True)
+    except OSError as e:
+        logger.error(f"Model files for '{MODEL_NAME}' not found or download failed. Check model name and network. Cache: '{CACHE_DIR}'. Error: {e}", exc_info=True)
+    except Exception as e:
+        # Catch-all for other loading errors
+        logger.error(f"Failed to load the zero-shot classifier model '{MODEL_NAME}': {e}", exc_info=True)
 
-        except Exception as e:
-            logger.error(f"Error loading classification model: {e}", exc_info=True)
-            classifier = None # Ensure it's None if loading fails
+    # Ensure pipeline is None if loading failed
+    _classifier_pipeline = None
+    return False
 
-def classify_query_local(query: str) -> str:
-    """Classifies the query using the local lightweight model."""
-    global classifier
-    if classifier is None:
-        logger.error("Classifier model not loaded. Cannot classify.")
-        # Fallback strategy: Could default to 'misinfo' or raise an error
-        # Let's default to 'misinfo' for now as it's a primary focus
-        return "misinfo"
+# Use the function name expected by main.py
+def classify_intent(query: str) -> Tuple[str, float]:
+    """
+    Classifies the intent of the query using the loaded zero-shot model.
+    Returns the predicted label and a confidence score.
+    """
+    global _classifier_pipeline # Use consistent name
+    if _classifier_pipeline is None:
+        logger.error("Classifier pipeline not loaded. Cannot classify intent.")
+        # Defaulting to 'misinfo' as defined in main.py's error handling expectation
+        logger.warning("Defaulting intent to 'misinfo' due to unavailable classifier.")
+        return "misinfo", 0.0 # Return default with zero confidence
+
+    if not query or not isinstance(query, str):
+        logger.warning(f"Invalid input for classification: {type(query)}. Returning default 'misinfo'.")
+        return "misinfo", 0.0
 
     try:
-        # Using zero-shot pipeline
-        results = classifier(query, candidate_labels=LABELS, multi_label=False) # multi_label=False forces single best label
-        predicted_label = results['labels'][0]
-        # score = results['scores'][0] # You can use the score for confidence if needed
-        logger.info(f"Classified query as: {predicted_label}")
-        return predicted_label
+        # Truncate input for very long queries - helps prevent errors
+        # Bart typically has 1024 token limit, 512 chars is safer heuristic
+        max_input_chars = 512
+        truncated_query = query[:max_input_chars]
+        if len(query) > max_input_chars:
+            logger.debug(f"Input query truncated to {max_input_chars} chars for classification.")
 
-        # --- Code for sequence classification pipeline (if using a fine-tuned model) ---
-        # results = classifier(query, return_all_scores=False) # Get only the top prediction
-        # predicted_label = results[0]['label']
-        # score = results[0]['score']
-        # logger.info(f"Classified query as: {predicted_label} with score: {score:.4f}")
-        # return predicted_label
-        # --- End sequence classification code ---
+        # Ensure LABELS from config are used
+        if not LABELS:
+             logger.error("Classifier labels not configured. Cannot classify.")
+             return "misinfo", 0.0
+
+        results = _classifier_pipeline(truncated_query, candidate_labels=LABELS, multi_label=False)
+        predicted_label = results['labels'][0]
+        score = results['scores'][0]
+
+        # Ensure label is one of the expected ones (sanity check)
+        if predicted_label not in LABELS:
+             logger.warning(f"Classifier returned an unexpected label '{predicted_label}'. Mapping to 'other' or default.")
+             # Decide how to handle unexpected labels - map to 'other' if exists, or default to misinfo
+             return "misinfo", float(score)
+
+        logger.debug(f"Classified intent as: Label='{predicted_label}', Confidence={score:.4f}")
+        return predicted_label, float(score) # Return label and score
+
 
     except Exception as e:
-        logger.error(f"Error during query classification: {e}", exc_info=True)
-        return "misinfo" # Fallback on error
+        logger.error(f"Error during intent classification for query '{query[:50]}...': {e}", exc_info=True)
+        # Fallback to 'misinfo' as per original logic
+        logger.warning("Returning default intent 'misinfo' due to classification error.")
+        return "misinfo", 0.0
+
+# REMOVED classify_query_local function, using classify_intent instead.

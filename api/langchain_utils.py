@@ -1,292 +1,378 @@
-# api/langchain_utils.py
-
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.embeddings import HuggingFaceEmbeddings # Still correct
-# Ensure community embeddings are available if needed, but HF is likely community now
-# from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain.vectorstores import FAISS
-# RetrievalQA is older, consider newer LCEL chains later if optimizing further
-from langchain.chains import RetrievalQA
-from langchain.document_loaders import TextLoader, DirectoryLoader, WebBaseLoader # Keep if needed elsewhere
 import logging
 import os
-from typing import List, Dict, Any # Use Any for flexible dicts
-import yaml
-# Correct relative import for query_groq (we need it for the RAG query part)
+from typing import List, Tuple, Optional, Dict, Any
+import pickle
+
+from langchain_community.vectorstores import FAISS
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_core.documents import Document
+# If using langchain-cohere directly:
+from langchain_cohere import CohereRerank # Check correct import
+# If calling Cohere API directly via SDK:
+import cohere
+
+from .utils import get_config
 from .groq_utils import query_groq
-import re
+
+# Load config globally
+CONFIG = get_config()
+RAG_CONFIG = CONFIG['rag']
+COHERE_CONFIG = CONFIG.get('cohere', {})
+GROQ_CONFIG = CONFIG['groq']
+
+# Initialize Cohere client if calling API directly
+COHERE_API_KEY = os.getenv("COHERE_API_KEY")
+co = None
+if COHERE_API_KEY:
+    try:
+        co = cohere.Client(COHERE_API_KEY)
+    except Exception as e:
+        logging.error(f"Failed to initialize Cohere client: {e}")
 
 logger = logging.getLogger(__name__)
 
-def load_config(config_path="config/config.yaml"):
-    """Load configuration from the YAML file."""
-    try:
-        with open(config_path, 'r') as f:
-            return yaml.safe_load(f)
-    except FileNotFoundError:
-        logger.error(f"Configuration file not found at {config_path}")
-        return {} # Return empty dict or raise error
-    except yaml.YAMLError as e:
-        logger.error(f"Error parsing configuration file {config_path}: {e}")
-        return {}
-
-config = load_config()
-
-def preprocess_text(text: str) -> str:
-    """Basic text preprocessing."""
-    if not isinstance(text, str): # Add type check
-        logger.warning(f"preprocess_text received non-string input: {type(text)}")
-        return ""
-    text = text.lower()
-    # Keep basic punctuation that might be relevant for meaning? Adjust as needed.
-    text = re.sub(r'[^a-z0-9\s.,?!:\'-]', '', text) # Allow some punctuation
-    text = re.sub(r'\s+', ' ', text).strip() # Normalize whitespace
-    return text
-
 class RealTimeDataProcessor:
+    """Handles RAG indexing, retrieval, and augmented querying."""
 
-    def __init__(self, api_key: str, embedding_model_name: str = None,
-                  index_path: str = None):
-        self.api_key = api_key # Groq key needed for query_rag
+    def __init__(self):
+        self.config = CONFIG # Use global config
+        self.rag_config = RAG_CONFIG
+        self.index_path = self.rag_config['index_path']
+        self.embedding_model_name = self.rag_config['embedding_model']
+        self.chunk_size = self.rag_config['chunk_size']
+        self.chunk_overlap = self.rag_config['chunk_overlap']
+        self.retrieval_multiplier = self.rag_config.get('retrieval_multiplier', 3) # Default multiplier
+        self.final_top_k = COHERE_CONFIG.get('rerank_top_n', 3) # Use Cohere config for final count
 
-        # Load defaults from config if not provided
-        rag_config = config.get('rag', {})
-        self.embedding_model_name = embedding_model_name or rag_config.get('embedding_model', "sentence-transformers/all-mpnet-base-v2")
-        self.index_path = index_path or os.getenv("FAISS_INDEX_PATH", "data/rag_data/default_index") # Use env var fallback
+        self._ensure_dir_exists(self.index_path)
+        self.embeddings = self._load_embeddings()
+        self.text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=self.chunk_size,
+            chunk_overlap=self.chunk_overlap,
+            length_function=len
+        )
+        self.vector_store = self._load_or_initialize_vector_store()
+        # Langchain CohereRerank integration (optional, check docs)
+        # self.reranker = self._load_reranker() # If using LC integration
 
-        self.embeddings = None
-        self.db = None
-        self._load_embeddings()
-        self._load_vector_db()
 
+    def _ensure_dir_exists(self, path: str):
+        if not os.path.exists(path):
+            os.makedirs(path)
+            logger.info(f"Created directory: {path}")
 
-    def _load_embeddings(self):
-        """Loads the embedding model."""
+    def _load_embeddings(self) -> Optional[HuggingFaceEmbeddings]:
+        """Loads the sentence transformer embedding model."""
         try:
-            # Check if community package path is needed based on langchain version
-            # For newer Langchain, HuggingFaceEmbeddings might be in community
+            # Use cache_folder to align with classifier caching if desired
+            # model_kwargs = {'device': 'cuda' if torch.cuda.is_available() else 'cpu'} # Basic device selection
+            # Use device based on torch availability (cpu/cuda/mps) - Requires torch installed
+            device = "cpu"
             try:
-                 from langchain_community.embeddings import HuggingFaceEmbeddings
-                 logger.info("Using HuggingFaceEmbeddings from langchain_community.")
-            except ImportError:
-                 from langchain.embeddings import HuggingFaceEmbeddings
-                 logger.info("Using HuggingFaceEmbeddings from core langchain.")
+                import torch
+                if torch.cuda.is_available(): device = "cuda"
+                elif torch.backends.mps.is_available(): device = "mps" # For Apple Silicon
+            except ImportError: pass # Stick to CPU if torch not installed
 
-            self.embeddings = HuggingFaceEmbeddings(model_name=self.embedding_model_name)
-            logger.info(f"Embedding model '{self.embedding_model_name}' loaded.")
+            encode_kwargs = {'normalize_embeddings': True} # Important for cosine similarity
+            logger.info(f"Loading embedding model: {self.embedding_model_name} onto device: {device}")
+
+            embeddings = HuggingFaceEmbeddings(
+                model_name=self.embedding_model_name,
+                model_kwargs={'device': device},
+                encode_kwargs=encode_kwargs,
+                cache_folder=CONFIG['classifier']['cache_dir'] # Use same cache dir
+            )
+            logger.info("Embedding model loaded.")
+            return embeddings
         except Exception as e:
-            logger.error(f"Failed to load embedding model '{self.embedding_model_name}': {e}", exc_info=True)
-            self.embeddings = None # Ensure it's None on failure
+            logger.error(f"Failed to load embedding model: {e}", exc_info=True)
+            return None
 
-    def _load_vector_db(self):
-        """Loads the FAISS index if it exists."""
-        if self.embeddings is None:
-             logger.error("Cannot load vector DB: Embeddings failed to load.")
-             return
+    def _load_or_initialize_vector_store(self) -> Optional[FAISS]:
+        """Loads FAISS index from disk or initializes a new one."""
+        index_file = os.path.join(self.index_path, "index.faiss")
+        pkl_file = os.path.join(self.index_path, "index.pkl")
 
-        if os.path.exists(self.index_path):
+        if os.path.exists(index_file) and os.path.exists(pkl_file) and self.embeddings:
             try:
-                # Allow dangerous deserialization, but log a warning
-                logger.warning(f"Loading FAISS index from {self.index_path} with allow_dangerous_deserialization=True. Ensure the index file source is trusted.")
-                self.db = FAISS.load_local(
+                # FAISS.load_local requires allow_dangerous_deserialization=True
+                # Ensure you trust the source of index.pkl
+                logger.info(f"Loading existing FAISS index from {self.index_path}...")
+                vector_store = FAISS.load_local(
                     self.index_path,
                     self.embeddings,
-                    allow_dangerous_deserialization=True # Required for pickle-based FAISS indexes
+                    allow_dangerous_deserialization=True
                 )
-                logger.info(f"Loaded existing FAISS index from {self.index_path}")
+                logger.info("FAISS index loaded successfully.")
+                return vector_store
             except Exception as e:
-                 logger.error(f"Error loading FAISS index from {self.index_path}: {e}", exc_info=True)
-                 self.db = None
-        else:
-            self.db = None
-            logger.info(f"No existing FAISS index found at {self.index_path}. Index will be created on first update.")
+                logger.error(f"Failed to load FAISS index: {e}. Re-initializing.", exc_info=True)
+                # Fall through to initialize a new one if loading fails
 
-    def update_index(self, new_data: List[str]):
-        """
-        Update the FAISS index with new data. Creates index if it doesn't exist.
-        """
-        if self.embeddings is None:
-             logger.error("Cannot update index: Embeddings not loaded.")
-             return # Or raise error
+        # Initialize new if files don't exist or loading failed
+        if self.embeddings:
+            logger.info("Initializing a new FAISS index.")
+            # Create a dummy index to allow saving empty initially
+            dummy_doc = Document(page_content="init")
+            try:
+                 vs = FAISS.from_documents([dummy_doc], self.embeddings)
+                 # Immediately delete the dummy doc - bit hacky but works for Langchain FAISS
+                 ids_to_delete = list(vs.index_to_docstore_id.values())
+                 vs.delete(ids=ids_to_delete)
+                 logger.info("New FAISS index initialized.")
+                 vs.save_local(self.index_path) # Save the empty structure
+                 return vs
+            except Exception as e:
+                 logger.error(f"Failed to initialize FAISS index: {e}", exc_info=True)
+                 return None
 
-        if not new_data:
-            logger.info("No new data provided to update_index.")
-            return
+        logger.error("Cannot initialize vector store without embedding model.")
+        return None
+
+    def update_index(self, documents: List[Document]):
+        """Adds new documents to the FAISS index and saves it."""
+        if not self.vector_store or not self.embeddings:
+            logger.error("Vector store or embeddings not initialized. Cannot update index.")
+            return False
+
+        if not documents:
+            logger.warning("No documents provided to update index.")
+            return True # No error, just nothing to do
+
+        logger.info(f"Splitting {len(documents)} documents into chunks...")
+        chunks = self.text_splitter.split_documents(documents)
+        logger.info(f"Generated {len(chunks)} chunks for indexing.")
+
+        if not chunks:
+            logger.warning("No chunks generated after splitting documents.")
+            return True
+
+        # Check existing IDs to potentially avoid duplicates if metadata allows
+        # existing_ids = list(self.vector_store.index_to_docstore_id.values()) # If needed
 
         try:
-            # Preprocess data
-            processed_data = [preprocess_text(text) for text in new_data if text] # Filter out empty strings
-            if not processed_data:
-                 logger.info("No valid text data left after preprocessing.")
-                 return
+            logger.info(f"Adding {len(chunks)} new chunks to the FAISS index...")
+            # Filter out chunks with potentially empty content after splitting
+            valid_chunks = [chunk for chunk in chunks if chunk.page_content and chunk.page_content.strip()]
+            if not valid_chunks:
+                 logger.warning("All chunks were empty after splitting/validation.")
+                 return True
 
-            # Split documents
-            rag_config = config.get('rag', {})
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=rag_config.get('chunk_size', 1000),
-                chunk_overlap=rag_config.get('chunk_overlap', 200)
-            )
-            chunks = text_splitter.create_documents(processed_data)
+            chunk_ids = self.vector_store.add_documents(valid_chunks)
+            logger.info(f"Successfully added {len(chunk_ids)} new chunks to index.")
 
-            if not chunks:
-                logger.warning("Text splitting resulted in no chunks.")
-                return
-
-            # Create or update index
-            if self.db is None:
-                logger.info(f"Creating new FAISS index at {self.index_path}")
-                self.db = FAISS.from_documents(chunks, self.embeddings)
-            else:
-                logger.info(f"Adding {len(chunks)} new chunks to existing FAISS index.")
-                self.db.add_documents(chunks)
-
-            # Ensure directory exists before saving
-            index_dir = os.path.dirname(self.index_path)
-            if index_dir and not os.path.exists(index_dir):
-                 os.makedirs(index_dir)
-                 logger.info(f"Created directory for FAISS index: {index_dir}")
-
-            self.db.save_local(self.index_path)
-            logger.info(f"FAISS index updated and saved to {self.index_path}")
+            # --- Persist changes ---
+            self.vector_store.save_local(self.index_path)
+            logger.info(f"FAISS index saved successfully to {self.index_path}")
+            return True
 
         except Exception as e:
             logger.error(f"Error updating FAISS index: {e}", exc_info=True)
-            # Decide if you want to raise the error or just log it
-            # raise
+            return False
 
-    async def retrieve_context(self, query: str, top_k: int = 5) -> List[str]:
-        """Retrieves relevant context from the vector store."""
-        if self.db is None:
-            logger.warning("No FAISS index available for context retrieval.")
-            return []
-        if self.embeddings is None:
-             logger.error("Cannot retrieve context: Embeddings not loaded.")
-             return []
 
+    def retrieve_context(self, query: str) -> List[Document]:
+         """Retrieves relevant document chunks based on the query."""
+         if not self.vector_store:
+              logger.error("Vector store not available for retrieval.")
+              return []
+
+         try:
+             k = self.final_top_k * self.retrieval_multiplier
+             logger.debug(f"Performing similarity search for query '{query}' with k={k}")
+             # Use similarity search; other methods like MMR exist
+             results = self.vector_store.similarity_search(query, k=k)
+             logger.debug(f"Retrieved {len(results)} initial documents.")
+             return results
+         except Exception as e:
+              logger.error(f"Error during vector store retrieval: {e}", exc_info=True)
+              return []
+
+    async def rerank_documents(self, query: str, documents: List[Document]) -> List[Document]:
+         """Re-ranks documents using Cohere API."""
+         if not co or not COHERE_API_KEY or not documents:
+              logger.warning("Cohere client not available or no documents to rerank. Returning original order.")
+              return documents[:self.final_top_k] # Return top N originals if no rerank
+
+         if not COHERE_CONFIG.get('rerank_model'):
+             logger.warning("Cohere rerank model not configured. Returning original order.")
+             return documents[:self.final_top_k]
+
+         logger.debug(f"Reranking {len(documents)} documents for query: '{query}' using Cohere '{COHERE_CONFIG['rerank_model']}'")
+         doc_texts = [doc.page_content for doc in documents]
+
+         try:
+             # Using Cohere SDK directly
+             rerank_response = co.rerank(
+                  model=COHERE_CONFIG['rerank_model'],
+                  query=query,
+                  documents=doc_texts,
+                  top_n=self.final_top_k # Ask Cohere to return only the best N
+             )
+             # Map reranked results back to original Document objects
+             reranked_docs = []
+             # result format {index: int, relevance_score: float}
+             for result in rerank_response.results:
+                 if result.relevance_score > 0.1: # Optional threshold
+                      reranked_docs.append(documents[result.index])
+                 else:
+                     logger.debug(f"Dropping reranked doc index {result.index} due to low score ({result.relevance_score:.3f})")
+
+             # Using LangChain integration (if preferred and setup)
+             # reranker_instance = CohereRerank(cohere_api_key=COHERE_API_KEY, model=COHERE_CONFIG['rerank_model'], top_n=self.final_top_k)
+             # reranked_docs = reranker_instance.compress_documents(documents=documents, query=query)
+
+             logger.info(f"Cohere reranked {len(documents)} -> {len(reranked_docs)} documents.")
+             return reranked_docs
+
+         except Exception as e:
+             logger.error(f"Error during Cohere reranking: {e}", exc_info=True)
+             # Fallback to original top N documents if reranking fails
+             return documents[:self.final_top_k]
+
+
+    async def query_rag(self, user_query: str, use_for: str = "misinfo_check") -> Tuple[Optional[str], Optional[List[Dict]]]:
+        """
+        Performs RAG: Retrieves, Re-ranks, checks sufficiency, and Queries LLM.
+
+        Args:
+            user_query: The user's question or statement.
+            use_for: Hint for prompt construction ('misinfo_check' or 'factual_qa').
+
+        Returns:
+            A tuple: (LLM response text or None, List of source document dicts or None)
+        """
+        if not self.vector_store:
+            logger.error("RAG query failed: Vector store not initialized.")
+            return None, None
+
+        # 1. Retrieve initial context
+        initial_documents = self.retrieve_context(user_query)
+        if not initial_documents:
+            logger.warning(f"RAG: No initial documents found for query: {user_query}")
+            return None, None # Signal no context found
+
+        # 2. Re-rank documents
+        reranked_documents = await self.rerank_documents(user_query, initial_documents)
+        if not reranked_documents:
+            logger.warning(f"RAG: No documents remaining after re-ranking for query: {user_query}")
+            return None, None
+
+        context_str = "\n\n---\n\n".join([doc.page_content for doc in reranked_documents])
+        sources = [{"source": doc.metadata.get('source', 'Unknown'),
+                    "snippet": doc.page_content[:150] + "..."} # Short snippet for context
+                   for doc in reranked_documents]
+
+
+        # 3. Check if RAG context is sufficient (Using Groq for evaluation)
+        sufficiency_prompt = GROQ_CONFIG['check_rag_sufficiency_prompt'].format(
+            query=user_query, context=context_str
+        )
+        sufficiency_check_start_time = asyncio.get_event_loop().time()
         try:
-            # Maybe preprocess query slightly?
-            # processed_query = preprocess_text(query)
-            docs = self.db.similarity_search(query, k=top_k)
-            context = [doc.page_content for doc in docs]
-            logger.info(f"Retrieved {len(context)} context snippets for query: {query[:50]}...")
-            # Optionally log the context itself if needed for debugging (can be verbose)
-            # logger.debug(f"Retrieved context: {context}")
-            return context
+            # Use a fast, small model for this check if possible/configured
+            sufficiency_response = await query_groq(sufficiency_prompt, temperature=0.0, model="llama3-8b-8192") # Example fast model
+            logger.debug(f"RAG Sufficiency check took {asyncio.get_event_loop().time() - sufficiency_check_start_time:.2f}s")
+
+            if sufficiency_response:
+                 sufficiency_answer = sufficiency_response.strip().upper().splitlines()[0]
+                 logger.info(f"RAG Context Sufficiency Assessment: {sufficiency_answer}")
+                 # Check if starts with NO or PARTIALLY
+                 if sufficiency_answer.startswith("NO") or sufficiency_answer.startswith("PARTIALLY"):
+                       logger.warning(f"RAG context deemed insufficient by LLM for query: '{user_query}'. Falling back.")
+                       return None, None # Indicate insufficient context
+            else:
+                 logger.warning("RAG sufficiency check LLM call failed. Assuming context might be sufficient.")
+                 # Proceed cautiously if check fails
+
         except Exception as e:
-            logger.error(f"Error during context retrieval: {e}", exc_info=True)
-            return []
-
-    async def query_rag(self, query: str, model: str, use_for: str = "general") -> Dict[str, Any]:
-        """
-        Queries the RAG system. Uses context + Groq.
-        'use_for' hint can tailor the prompt slightly.
-        """
-        if self.db is None:
-             logger.warning("RAG query attempted but vector DB is not loaded.")
-             return {"answer": "I cannot answer using real-time data as the knowledge base isn't available.", "source": "RAG Error - No DB"}
-
-        try:
-            context = await self.retrieve_context(query)
-            if not context:
-                logger.info(f"No relevant context found in RAG for query: {query[:50]}...")
-                # For misinfo, maybe *don't* proceed without context?
-                # For factual fallback, definitely don't proceed.
-                if use_for == "misinfo_check":
-                    # If checking misinfo and NO context found, maybe Groq alone isn't useful?
-                    # Return a specific message indicating lack of grounding.
-                    return {
-                        "category": "uncertain", "confidence": 0.3,
-                        "explanation": "Could not find relevant real-time information to verify this statement.",
-                        "recommendation": "Verify with trusted sources independently.",
-                        "source": "RAG - No Context Found"
-                    }
-                else: # Factual fallback or general
-                    return {"answer": "I couldn't find specific real-time information related to your question.", "source": "RAG - No Context Found"}
+             logger.error(f"Error during RAG sufficiency check LLM call: {e}", exc_info=True)
+             # Proceed cautiously, assume might be sufficient if check errors out
+             logger.warning("Proceeding with RAG despite sufficiency check error.")
 
 
-            context_str = "\n---\n".join(context) # Separator for clarity
-
-            # Tailor prompt based on intended use
-            if use_for == "misinfo_check":
-                 prompt = f"""Please analyze the following statement based *primarily* on the provided real-time context. Assess if the statement aligns with, contradicts, or is not mentioned in the context.
-
-Context from recent news:
+        # 4. Query LLM with augmented prompt (if context deemed sufficient)
+        # Build prompt based on use_for
+        # Simplified prompt building (can be expanded based on groq_utils logic)
+        if use_for == "misinfo_check":
+             # Need a prompt asking to analyze the query based *only* on the context
+             prompt = f"""Analyze the following statement based *only* on the provided context documents.
+Determine if the statement is supported, contradicted, or if the context doesn't provide enough information. Explain your reasoning.
+Statement: "{user_query}"
+Context Documents:
 {context_str}
----
-Statement to Analyze: "{query}"
+Analysis:""" # TODO: Refine this prompt for misinfo check
 
-Provide your analysis in this JSON format:
-{{
-    "category": "[truth/fake/uncertain/opinion/etc.]",
-    "confidence": [0.0-1.0],
-    "explanation": "[Explain how context supports/refutes the statement, or why it's uncertain]",
-    "context_match": "[yes/no/partial]",
-    "key_context_points": ["Relevant snippet 1", "..."]
-}}"""
-                 temp = 0.1 # Be factual for analysis
-
-            elif use_for == "factual_fallback":
-                 prompt = f"""Answer the following question using the provided recent context. If the context doesn't directly answer it, state that.
-
-Context:
+        elif use_for == "factual_qa":
+             prompt = f"""Answer the following question based *only* on the provided context documents.
+If the context doesn't contain the answer, state that clearly.
+Question: "{user_query}"
+Context Documents:
 {context_str}
----
-Question: "{query}"
-
-Answer directly:"""
-                 temp = 0.2 # Slightly more flexible for answering
-            else: # General RAG query (should be less common now)
-                 prompt = f"""Use the following context to answer the question at the end. If you can't find the answer in the context, just say that you don't know based on the provided information. Do not use prior knowledge.
-Context:
-{context_str}
----
-Question: "{query}"
 Answer:"""
-                 temp = 0.1
+        else:
+             logger.warning(f"Unknown 'use_for' value: {use_for}. Using generic prompt.")
+             prompt = f"""Based on the following context, respond to the query: "{user_query}" \nContext:\n{context_str}\nResponse:"""
 
-            # Query Groq using the context
-            groq_response = await query_groq(prompt, self.api_key, model, temperature=temp)
+        logger.debug(f"Querying Groq with RAG context for: {user_query}")
+        llm_response = await query_groq(prompt, temperature=self.config['groq']['temperature'], model=self.config['groq']['model'])
 
-            answer = groq_response.get("choices", [{}])[0].get("message", {}).get("content", "")
+        return llm_response, sources
 
-            # If used for misinfo check, try to parse the expected JSON
-            if use_for == "misinfo_check":
-                try:
-                    rag_analysis = json.loads(answer)
-                    rag_analysis["source"] = "RAG (News Context + Groq Analysis)"
-                    return rag_analysis
-                except json.JSONDecodeError:
-                    logger.warning(f"Failed to parse JSON response from RAG misinfo check: {answer[:200]}...")
-                    # Fallback to a basic structure if JSON fails
-                    return {
-                        "category": "uncertain", "confidence": 0.4,
-                        "explanation": "AI analysis based on context was unclear: " + answer[:300],
-                        "recommendation": "Manual verification recommended.",
-                        "source": "RAG (News Context + Groq Analysis - Format Error)"
-                    }
-            else: # Factual fallback or general
-                return {"answer": answer, "source": "RAG (News Context + Groq Answer)", "retrieved_context": context[:1]} # Maybe include snippet of context used
+    # Helper function to load data (e.g., from MongoDB if scraper saves there)
+    def load_data_from_mongo(self) -> List[Document]:
+         """Loads data from MongoDB (adapt based on org12.py structure)."""
+         docs = []
+         mongo_uri = os.getenv("MONGO_URI")
+         db_name = CONFIG.get("mongo", {}).get("db_name")
+         collection_name = CONFIG.get("mongo", {}).get("collection_name")
 
-        except Exception as e:
-            logger.error(f"RAG query failed: {e}", exc_info=True)
-            return {"answer": f"An error occurred while consulting real-time data: {e}", "source": "RAG Error"}
+         if not all([mongo_uri, db_name, collection_name]):
+              logger.warning("MongoDB config missing, cannot load data for RAG update.")
+              return []
 
+         try:
+              from pymongo import MongoClient
+              client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
+              db = client[db_name]
+              collection = db[collection_name]
 
-# Keep load_data_from_web if used elsewhere, but ensure it uses httpx if fetching web pages directly
-# Example of updating load_data_from_web to use httpx (if needed)
-async def load_text_from_web_url(url: str, timeout: int = 15) -> str:
-    """Fetches text content from a single URL asynchronously."""
-    try:
-        async with httpx.AsyncClient(follow_redirects=True, timeout=timeout) as client:
-            response = await client.get(url)
-            response.raise_for_status()
-            # Basic text extraction, consider BeautifulSoup for better HTML parsing
-            # This assumes content-type is text-based
-            return response.text
-    except httpx.HTTPStatusError as e:
-        logger.error(f"HTTP Error {e.response.status_code} fetching {url}: {e.response.text[:200]}")
-    except httpx.RequestError as e:
-        logger.error(f"Request Error fetching {url}: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected error fetching {url}: {e}", exc_info=True)
-    return ""
+              # Load recent articles, perhaps based on 'scrape_timestamp'
+              # Define your query here, e.g., only load articles not yet processed for RAG
+              mongo_results = collection.find({}, {"_id": 0, "title": 1, "content": 1, "url": 1, "source_domain": 1, "date_published": 1}).limit(100) # Example: Limit loading
+
+              for item in mongo_results:
+                  if item.get('content'):
+                       # Construct LangChain Document
+                       metadata = {
+                           "source": item.get('url', item.get('source_domain', 'Unknown')),
+                           "title": item.get('title', 'No Title'),
+                           "publish_date": str(item.get('date_published', '')),
+                           # Add other relevant metadata
+                       }
+                       doc = Document(page_content=item['content'], metadata=metadata)
+                       docs.append(doc)
+              client.close()
+              logger.info(f"Loaded {len(docs)} documents from MongoDB collection '{collection_name}'.")
+
+         except ImportError:
+             logger.error("Pymongo not installed. Cannot load data from MongoDB.")
+         except Exception as e:
+              logger.error(f"Error loading data from MongoDB: {e}", exc_info=True)
+
+         return docs
+
+    def run_periodic_update(self):
+        """Loads data (e.g., from Mongo) and updates the index."""
+        logger.info("Starting periodic RAG index update...")
+        new_documents = self.load_data_from_mongo() # Or load from another source
+        if new_documents:
+            success = self.update_index(new_documents)
+            if success:
+                logger.info("Periodic RAG index update completed successfully.")
+            else:
+                logger.error("Periodic RAG index update failed.")
+        else:
+            logger.info("No new documents found for periodic RAG update.")
