@@ -1,0 +1,16 @@
+# Ignore virtual environments
+venv/
+
+# Ignore cache and model folders
+__pycache__/
+*.pyc
+model_cache/
+
+# Ignore large model files
+*.bin
+*.dylib
+*.pt
+*.pth
+
+# Ignore system files
+.DS_Store

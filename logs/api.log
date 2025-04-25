@@ -18641,3 +18641,80 @@ redis.exceptions.ConnectionError: Error 61 connecting to localhost:6379. 61.
 2025-04-25 14:29:44 - api.main - INFO - [MainThread] - Application shutdown complete.
 2025-04-25 14:29:44 - uvicorn.error - INFO - [MainThread] - Application shutdown complete.
 2025-04-25 14:29:44 - uvicorn.error - INFO - [MainThread] - Finished server process [47382]
+2025-04-25 15:11:00 - root - INFO - [MainThread] - Logging configured successfully.
+2025-04-25 15:11:00 - api.main - INFO - [MainThread] - Configuring CORS for origins: ['*']
+2025-04-25 15:11:00 - uvicorn.error - INFO - [MainThread] - Started server process [87260]
+2025-04-25 15:11:00 - uvicorn.error - INFO - [MainThread] - Waiting for application startup.
+2025-04-25 15:11:00 - api.main - INFO - [MainThread] - Application startup initiated...
+2025-04-25 15:11:00 - api.groq_utils - INFO - [MainThread] - Shared Groq HTTP client initialized.
+2025-04-25 15:11:00 - api.main - INFO - [MainThread] - Connecting to Redis at redis://localhost:6379 for caching...
+2025-04-25 15:11:00 - api.main - ERROR - [MainThread] - Failed to connect to Redis or initialize cache: Error 61 connecting to localhost:6379. 61.. Cache will be disabled.
+Traceback (most recent call last):
+  File "/Users/gokulanhope/Desktop/falonewdelhi/misinfo_detection_project/venv/lib/python3.12/site-packages/redis/asyncio/connection.py", line 577, in connect
+    await self.retry.call_with_retry(
+  File "/Users/gokulanhope/Desktop/falonewdelhi/misinfo_detection_project/venv/lib/python3.12/site-packages/redis/asyncio/retry.py", line 59, in call_with_retry
+    return await do()
+           ^^^^^^^^^^
+  File "/Users/gokulanhope/Desktop/falonewdelhi/misinfo_detection_project/venv/lib/python3.12/site-packages/redis/asyncio/connection.py", line 922, in _connect
+    reader, writer = await asyncio.open_connection(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.10/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/streams.py", line 48, in open_connection
+    transport, _ = await loop.create_connection(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "uvloop/loop.pyx", line 2043, in create_connection
+  File "uvloop/loop.pyx", line 2020, in uvloop.loop.Loop.create_connection
+ConnectionRefusedError: [Errno 61] Connection refused
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/gokulanhope/Desktop/falonewdelhi/misinfo_detection_project/api/main.py", line 104, in lifespan
+    await redis_client.ping()
+  File "/Users/gokulanhope/Desktop/falonewdelhi/misinfo_detection_project/venv/lib/python3.12/site-packages/redis/asyncio/client.py", line 513, in execute_command
+    conn = self.connection or await pool.get_connection(command_name, **options)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gokulanhope/Desktop/falonewdelhi/misinfo_detection_project/venv/lib/python3.12/site-packages/redis/asyncio/connection.py", line 1375, in get_connection
+    await connection.connect()
+  File "/Users/gokulanhope/Desktop/falonewdelhi/misinfo_detection_project/venv/lib/python3.12/site-packages/redis/asyncio/connection.py", line 585, in connect
+    raise ConnectionError(self._error_message(e))
+redis.exceptions.ConnectionError: Error 61 connecting to localhost:6379. 61.
+2025-04-25 15:11:00 - api.main - INFO - [MainThread] - Loading intent classifier model...
+2025-04-25 15:11:00 - api.classifier - INFO - [MainThread] - Attempting to load classifier model 'facebook/bart-large-mnli' from Hugging Face Hub...
+2025-04-25 15:11:00 - api.classifier - INFO - [MainThread] - Attempting to load classifier onto MPS device...
+2025-04-25 15:11:00 - urllib3.connectionpool - DEBUG - [MainThread] - Starting new HTTPS connection (1): huggingface.co:443
+2025-04-25 15:11:00 - urllib3.connectionpool - DEBUG - [MainThread] - https://huggingface.co:443 "HEAD /facebook/bart-large-mnli/resolve/main/config.json HTTP/1.1" 200 0
+2025-04-25 15:11:04 - api.classifier - INFO - [MainThread] - Zero-shot classifier 'facebook/bart-large-mnli' loaded successfully onto MPS device.
+2025-04-25 15:11:04 - api.main - INFO - [MainThread] - Intent classifier loaded.
+2025-04-25 15:11:04 - api.main - INFO - [MainThread] - Initializing RAG processor...
+2025-04-25 15:11:04 - api.langchain_utils - INFO - [MainThread] - Loading embedding model: sentence-transformers/all-mpnet-base-v2 onto device: mps
+2025-04-25 15:11:04 - sentence_transformers.SentenceTransformer - INFO - [MainThread] - Load pretrained SentenceTransformer: sentence-transformers/all-mpnet-base-v2
+2025-04-25 15:11:04 - urllib3.connectionpool - DEBUG - [MainThread] - https://huggingface.co:443 "HEAD /sentence-transformers/all-mpnet-base-v2/resolve/main/modules.json HTTP/1.1" 200 0
+2025-04-25 15:11:05 - urllib3.connectionpool - DEBUG - [MainThread] - https://huggingface.co:443 "HEAD /sentence-transformers/all-mpnet-base-v2/resolve/main/config_sentence_transformers.json HTTP/1.1" 200 0
+2025-04-25 15:11:05 - urllib3.connectionpool - DEBUG - [MainThread] - https://huggingface.co:443 "HEAD /sentence-transformers/all-mpnet-base-v2/resolve/main/README.md HTTP/1.1" 200 0
+2025-04-25 15:11:05 - urllib3.connectionpool - DEBUG - [MainThread] - https://huggingface.co:443 "HEAD /sentence-transformers/all-mpnet-base-v2/resolve/main/modules.json HTTP/1.1" 200 0
+2025-04-25 15:11:06 - urllib3.connectionpool - DEBUG - [MainThread] - https://huggingface.co:443 "HEAD /sentence-transformers/all-mpnet-base-v2/resolve/main/sentence_bert_config.json HTTP/1.1" 200 0
+2025-04-25 15:11:06 - urllib3.connectionpool - DEBUG - [MainThread] - https://huggingface.co:443 "HEAD /sentence-transformers/all-mpnet-base-v2/resolve/main/config.json HTTP/1.1" 200 0
+2025-04-25 15:11:07 - urllib3.connectionpool - DEBUG - [MainThread] - https://huggingface.co:443 "HEAD /sentence-transformers/all-mpnet-base-v2/resolve/main/tokenizer_config.json HTTP/1.1" 200 0
+2025-04-25 15:11:07 - urllib3.connectionpool - DEBUG - [MainThread] - https://huggingface.co:443 "GET /api/models/sentence-transformers/all-mpnet-base-v2/revision/main HTTP/1.1" 200 6807
+2025-04-25 15:11:07 - api.langchain_utils - INFO - [MainThread] - Embedding model loaded.
+2025-04-25 15:11:07 - api.langchain_utils - INFO - [MainThread] - Loading existing FAISS index from data/rag_data/specialized_topic_index...
+2025-04-25 15:11:07 - faiss.loader - DEBUG - [MainThread] - Environment variable FAISS_OPT_LEVEL is not set, so let's pick the instruction set according to the current CPU
+2025-04-25 15:11:07 - faiss.loader - INFO - [MainThread] - Loading faiss.
+2025-04-25 15:11:07 - faiss.loader - INFO - [MainThread] - Successfully loaded faiss.
+2025-04-25 15:11:07 - api.langchain_utils - INFO - [MainThread] - FAISS index loaded successfully.
+2025-04-25 15:11:07 - api.main - INFO - [MainThread] - RAG processor initialized successfully.
+2025-04-25 15:11:07 - api.main - INFO - [MainThread] - Loading Knowledge Graph...
+2025-04-25 15:11:07 - api.kg_utils - INFO - [MainThread] - Knowledge Graph loaded from data/kg_store/knowledge_graph.gpickle with 0 nodes and 0 edges.
+2025-04-25 15:11:07 - api.main - INFO - [MainThread] - Loading SpaCy model for KG NER...
+2025-04-25 15:11:07 - api.kg_utils - ERROR - [MainThread] - SpaCy model 'en_core_web_sm' not found. Download it: python -m spacy download en_core_web_sm
+2025-04-25 15:11:07 - api.main - WARNING - [MainThread] - Failed to load SpaCy model. KG entity extraction disabled.
+2025-04-25 15:11:07 - api.main - INFO - [MainThread] - Application startup complete.
+2025-04-25 15:11:07 - uvicorn.error - INFO - [MainThread] - Application startup complete.
+2025-04-25 15:11:14 - uvicorn.error - INFO - [MainThread] - Shutting down
+2025-04-25 15:11:14 - uvicorn.error - INFO - [MainThread] - Waiting for application shutdown.
+2025-04-25 15:11:14 - api.main - INFO - [MainThread] - Application shutdown initiated...
+2025-04-25 15:11:14 - api.kg_utils - DEBUG - [MainThread] - Knowledge Graph saved to data/kg_store/knowledge_graph.gpickle
+2025-04-25 15:11:14 - api.groq_utils - INFO - [MainThread] - Shared Groq HTTP client closed.
+2025-04-25 15:11:14 - api.main - INFO - [MainThread] - Application shutdown complete.
+2025-04-25 15:11:14 - uvicorn.error - INFO - [MainThread] - Application shutdown complete.
+2025-04-25 15:11:14 - uvicorn.error - INFO - [MainThread] - Finished server process [87260]
