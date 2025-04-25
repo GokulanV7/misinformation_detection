@@ -14,7 +14,7 @@ faiss-cpu==1.8.* # Or faiss-gpu if you have CUDA setup
 sentence-transformers==2.7.*
 # If using LangChain's Cohere integration:
 langchain-cohere==0.1.*
-
+netifaces
 # NLP & Utilities
 nltk==3.8.*
 spacy==3.7.*

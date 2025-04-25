@@ -1,7 +1,0 @@
-.env
-logs/api.log
-api/__pycache__
-data/rag_data/
-tests/
-model_cache
-__pycache__
